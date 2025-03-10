@@ -61,3 +61,6 @@ venv/
 
 # Exclude local json files
 *.json
+
+# Exclude testing script
+fun.py
