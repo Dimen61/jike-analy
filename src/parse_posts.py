@@ -364,8 +364,10 @@ def main():
     dump_posts_to_json(posts, BACKUP_POSTS_JSON_FILE)
 
     init_posts_len = len(posts)
-    increase_len = 55
+    # init_posts_len = 355
+    increase_len = 25
     target_posts_len = init_posts_len + increase_len
+
     for dic in load_local_posts():
         count += 1
         if count <= init_posts_len:

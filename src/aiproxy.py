@@ -3,49 +3,49 @@ import functools
 import os
 import time
 from typing import List, Optional
+from dataclasses import dataclass
 
 from google import genai
-from pydantic_core.core_schema import call_schema
 
 from post_types import PostType, SentimentType
 
-
-def api_decorator(func):
-
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if AIProxy.call_count == AIProxy.CALL_LIMIT_PER_PERIOD:
-            print('API call limit reached')
-            print(f'Sleeping for {AIProxy.CALL_PERIOD} seconds...')
-            time.sleep(AIProxy.CALL_PERIOD)
-            print('Retry API')
-
-            AIProxy.call_count = 0
-            return wrapper(self, *args, **kwargs)
-
-        try:
-            ret = func(self, *args, **kwargs)
-            AIProxy.call_count += 1
-
-            return ret
-        except Exception as e:
-            print(f'API Error: {e}')
-
-            # Add a delay before retrying
-            print(f'Sleeping for {AIProxy.CALL_PERIOD} seconds...')
-            time.sleep(AIProxy.CALL_PERIOD)
-            print('Retry API')
-
-            AIProxy.call_count = 0
-            return wrapper(self, *args, **kwargs)
-
-    return wrapper
 
 class AIProxy:
     CALL_PERIOD = 60 # In second
     CALL_LIMIT_PER_PERIOD = 15
     call_count = 0
 
+    @staticmethod
+    def api_decorator(func):
+
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if AIProxy.call_count == AIProxy.CALL_LIMIT_PER_PERIOD:
+                print('API call limit reached')
+                print(f'Sleeping for {AIProxy.CALL_PERIOD} seconds...')
+                time.sleep(AIProxy.CALL_PERIOD)
+                print('Retry API')
+
+                AIProxy.call_count = 0
+                return wrapper(self, *args, **kwargs)
+
+            try:
+                ret = func(self, *args, **kwargs)
+                AIProxy.call_count += 1
+
+                return ret
+            except Exception as e:
+                print(f'API Error: {e}')
+
+                # Add a delay before retrying
+                print(f'Sleeping for {AIProxy.CALL_PERIOD} seconds...')
+                time.sleep(AIProxy.CALL_PERIOD)
+                print('Retry API')
+
+                AIProxy.call_count = 0
+                return wrapper(self, *args, **kwargs)
+
+        return wrapper
 
     def __init__(self, content_txt):
         self.content_txt = content_txt
