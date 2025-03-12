@@ -11,3 +11,5 @@ USER_POSTS_JSON_FILE = './user_post_groups.json'
 ANALYSED_POSTS_JSON_FILE = './selection_posts.json'
 
 BACKUP_ANALYSED_POSTS_JSON_FILE = './backup_posts.json'
+
+MODEL_RETRY_MAX_NUM = 80

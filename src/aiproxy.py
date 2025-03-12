@@ -4,7 +4,7 @@ import os
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from google import genai
@@ -26,11 +26,9 @@ class NoAvailableModelError(Exception):
 
 
 class AIProxy:
-    CALL_PERIOD = 60 # In second
-    CALL_LIMIT_PER_PERIOD = 15
     call_count_per_min = 0
     call_count_per_day = 0
-    last_call_time = datetime.now(timezone.utc)
+    last_begin_call_time_per_min = datetime.now(timezone.utc)
 
     @staticmethod
     def api_decorator(func):
@@ -38,54 +36,82 @@ class AIProxy:
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             now = datetime.now(timezone.utc)
-            time_since_last_call = now - AIProxy.last_call_time
+            time_since_last_call_per_min = now - AIProxy.last_begin_call_time_per_min
 
             if (
                 AIProxy.call_count_per_min == self.model.max_call_num_per_min
-                and time_since_last_call.total_seconds() <= 60
+                and time_since_last_call_per_min.total_seconds() <= 60
             ):
-                sleep_time_in_second = 60 - time_since_last_call.total_seconds()
+                sleep_time_in_second = 60 - time_since_last_call_per_min.total_seconds()
 
                 print('API call reached minute limit')
                 print(f'Sleeping for {sleep_time_in_second} seconds...')
                 time.sleep(sleep_time_in_second)
                 print('Retry API')
 
+                # Debug
+                print(f'last_call_time_per_min: {AIProxy.last_begin_call_time_per_min}')
+                print(f'time_since_last_call_per_min: {time_since_last_call_per_min}')
+                #
+
                 AIProxy.call_count_per_min = 0
+                AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
 
                 return wrapper(self, *args, **kwargs)
             elif AIProxy.call_count_per_day == self.model.max_call_num_per_day:
                 print('API call reached day limit')
                 print('Change model...')
 
+                AIProxy.call_count_per_day = AIProxy.call_count_per_min = 0
+                AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
                 self._init_model()
                 self._init_chat()
 
                 return wrapper(self, *args, **kwargs)
+            elif time_since_last_call_per_min.total_seconds() > 60:
+                AIProxy.last_begin_call_time_per_min = now
 
             try:
                 AIProxy.call_count_per_min += 1
                 AIProxy.call_count_per_day += 1
-                AIProxy.last_call_time = now
+
+                print(f"Current call API time: {now}")
+                print(f"Current call count per minute: {AIProxy.call_count_per_min}")
+                print(f"Current call count per day: {AIProxy.call_count_per_day}")
 
                 ret = func(self, *args, **kwargs)
 
                 return ret
             except Exception as e:
-                print(f'API Error: {e}')
-                print(f'Error type: {type(e).__name__}')
-                traceback.print_exc()
+                self.model_retry_count += 1
 
-                # Add a delay before retrying
-                sleep_time_in_second = 60 - time_since_last_call.total_seconds()
+                if self.model_retry_count >= constants.MODEL_RETRY_MAX_NUM:
+                    print('API call reached day limit')
+                    print('Change model...')
 
-                print('API call reached minute limit')
-                print(f'Sleeping for {sleep_time_in_second} seconds...')
-                time.sleep(sleep_time_in_second)
-                print('Retry API')
+                    AIProxy.call_count_per_day = AIProxy.call_count_per_min = 0
+                    AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
+                    self._init_model()
+                    self._init_chat()
 
-                AIProxy.call_count_per_min = 0
-                return wrapper(self, *args, **kwargs)
+                    return wrapper(self, *args, **kwargs)
+                else:
+                    print(f'API Error: {e}')
+                    print(f'Error type: {type(e).__name__}')
+                    traceback.print_exc()
+
+                    # Add a delay before retrying
+                    sleep_time_in_second = 60 - time_since_last_call_per_min.total_seconds()
+
+                    print('API call reached minute limit')
+                    print(f'Sleeping for {sleep_time_in_second} seconds...')
+
+                    time.sleep(sleep_time_in_second)
+                    print('Retry API')
+
+                    AIProxy.call_count_per_min = 0
+                    AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
+                    return wrapper(self, *args, **kwargs)
 
         return wrapper
 
@@ -105,6 +131,7 @@ class AIProxy:
         self.client = genai.Client(api_key=api_key)
 
         self.model = None
+        self.model_retry_count = 0
         self.chat= None
         self._init_model()
         self._init_chat()
@@ -114,11 +141,8 @@ class AIProxy:
             raise NoAvailableModelError("Models pool is empty...")
 
         self.model = self.models_pool.pop(0)
+        self.model_retry_count = 0
         print(f'Current model: {self.model.name}')
-
-        AIProxy.call_count_per_day = AIProxy.call_count_per_min = 0
-        AIProxy.last_call_time = datetime.now(timezone.utc)
-
 
     @api_decorator
     def _init_chat(self):
@@ -137,7 +161,7 @@ class AIProxy:
 
         prompt = """请根据上面给定的文本，总结能代表文本的主题关键词标签，你回答的格式为: ['tag1', 'tag2', 'tag3']"""
         response = self.chat.send_message(prompt)
-        print(f'Chat response: {response.text}')
+        print(f'Chat response(tags): {response.text}')
 
         return ast.literal_eval(str(response.text).strip())
 
@@ -159,7 +183,7 @@ class AIProxy:
             "PRODUCT_MARKETING：产品营销类，包括产品介绍、营销活动等。\n"
         )
         response = self.chat.send_message(prompt)
-        print(f'Chat response: {response.text}')
+        print(f'Chat response(PostType): {response.text}')
 
         try:
             return PostType.from_string(str(response.text).strip())
@@ -175,7 +199,7 @@ class AIProxy:
 
         prompt = "请根据上面给定的文本，总结能文本情绪偏向，正向、中立还是负向，回答的格式为: NEUTRAL or NEGATIVE or POSITIVE"
         response = self.chat.send_message(prompt)
-        print(f'Chat response: {response.text}')
+        print(f'Chat response(SentimentType): {response.text}')
 
         try:
             sentiment_type = SentimentType.from_string(str(response.text).strip())
@@ -193,7 +217,7 @@ class AIProxy:
 
         prompt = "请根据上面给定的文本，判断是否为热点话题，热点话题就是在最近两年内热门讨论的话题。回答的格式为: True or False"
         response = self.chat.send_message(prompt)
-        print(f'Chat response: {response.text}')
+        print(f'Chat response(is_hotspot): {response.text}')
 
         is_hotspot = None
         try:
@@ -211,7 +235,7 @@ class AIProxy:
 
         prompt = "请根据上面给定的文本，判断是否为创意内容，创意内容是指具有独特性、新颖性、创新性的内容。回答的格式为: True or False"
         response = self.chat.send_message(prompt)
-        print(f'Chat response: {response.text}')
+        print(f'Chat response(is_creative): {response.text}')
 
         is_creative = None
         try:
