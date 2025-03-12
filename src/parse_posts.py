@@ -1,5 +1,5 @@
 import json
-import time
+import traceback
 from typing import List
 from urllib.parse import urljoin
 
@@ -7,16 +7,31 @@ import requests
 from bs4 import BeautifulSoup
 from google.genai.operations import Optional
 
+import constants
 from aiproxy import AIProxy
 from post_types import ContentLengthType, PostType, SentimentType
 
 
 class Author:
+    """Represents an author on the Jike platform.
 
-    BASE_URL = "https://m.okjike.com"
+    Attributes:
+        url (str): The URL of the author's profile page.
+        name (str): The author's screen name.
+        follower_num (int): The number of followers the author has.
+        following_num (int): The number of users the author is following.
+        soup (BeautifulSoup): The BeautifulSoup object for the author's profile page.
+    """
 
     def __init__(self, link_path, enable_auto_parse=True):
-        self.url= urljoin(self.BASE_URL, link_path)
+        """Initializes an Author object.
+
+        Args:
+            link_path (str): The path portion of the author's profile URL.
+            enable_auto_parse (bool, optional): Whether to automatically parse author data upon initialization.
+                Defaults to True.
+        """
+        self.url= urljoin(constants.JIKE_URL, link_path)
         self.name = None
         self.follower_num = None
         self.following_num = None
@@ -29,6 +44,7 @@ class Author:
             self._parse_follower()
 
     def _init_request(self):
+        """Sends an HTTP request to the author's profile page and initializes the BeautifulSoup object."""
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         }
@@ -37,12 +53,14 @@ class Author:
         self.soup = BeautifulSoup(response.text, 'html.parser')
 
     def _parse_name(self):
+        """Parses the author's name from the BeautifulSoup object."""
         if not self.soup:
            raise RuntimeError("Soup is not initialized. Author({self.url})")
 
         self.name= self.soup.find('div', class_='user-screenname').text.strip()
 
     def _parse_follower(self):
+        """Parses the author's follower and following counts from the BeautifulSoup object."""
         if not self.soup:
            raise RuntimeError("Soup is not initialized. Author({self.url})")
 
@@ -56,14 +74,13 @@ class Author:
             print(f'Failed to parse number. Author({self.url})')
 
     def _parse_follower_num(self, num_str) -> int:
-        """
-        Parse follower number string to integer
+        """Parses a string representation of a number (e.g., '111', '11k') to an integer.
 
-        num_str: str
-        Examples: 111, 11k
+        Args:
+            num_str (str): The string to parse.
 
         Returns:
-            int: The parsed follower number
+            int: The parsed integer.
         """
         if not num_str:
             return 0
@@ -90,6 +107,11 @@ class Author:
         return f"Author(url={self.url}, follower_num={self.follower_num})"
 
     def to_dict(self):
+        """Converts the Author object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the author.
+        """
         return {
             'url': self.url,
             'name': self.name,
@@ -99,8 +121,36 @@ class Author:
 
 
 class Post:
+    """Represents a post on the Jike platform.
+
+    Attributes:
+        title (str): The title of the post.
+        link (str): The URL of the post.
+        selected_date (str): The date the post was selected for analysis.
+        content (str): The content of the post.
+        content_length_type (ContentLengthType): The length category of the post content.
+        tags (List[str]): Tags associated with the post.
+        topic (str): The topic of the post.
+        author (Author): The author of the post.
+        like_count (Optional[int]): The number of likes the post has received.
+        post_type (PostType): The type of the post (e.g., question, share).
+        sentiment_type (SentimentType): The sentiment expressed in the post (e.g., positive, negative).
+        is_hotspot (bool): Whether the post discusses a current hotspot.
+        is_creative (bool): Whether the post is considered creative.
+        soup (BeautifulSoup): The BeautifulSoup object for the post's page.
+        aiproxy (AIProxy): An instance of AIProxy for analyzing the post content.
+    """
 
     def __init__(self, title, link, selected_date, enable_auto_parse=True):
+        """Initializes a Post object.
+
+        Args:
+            title (str): The title of the post.
+            link (str): The URL of the post.
+            selected_date (str): The date the post was selected for analysis.
+            enable_auto_parse (bool, optional): Whether to automatically parse post data upon initialization.
+                Defaults to True.
+        """
         self.title = title
         self.link = link
         self.selected_date = selected_date
@@ -116,7 +166,7 @@ class Post:
         self.sentiment_type = SentimentType.NONE
         self.is_hotspot = None
         self.is_creative = None
-        # self.word_num_count = None
+        # self.word_num_count = None  #Considered but not used
 
         self.soup = None
         self.aiproxy = None
@@ -138,9 +188,11 @@ class Post:
             self._parse_is_creative()
 
     def _init_aiproxy(self):
+        """Initializes the AIProxy object for content analysis."""
         self.aiproxy = AIProxy(self.content)
 
     def _init_request(self):
+        """Sends an HTTP request to the post's page and initializes the BeautifulSoup object."""
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         }
@@ -159,36 +211,46 @@ class Post:
             )
 
     def _parse_tags(self):
+        """Parses tags from the post content using the AIProxy."""
         if self.aiproxy:
             self.tags = self.aiproxy.get_tags_from_content_text()
 
     def _parse_is_hotspot(self):
+        """Determines if the post is a hotspot using the AIProxy."""
         if self.aiproxy:
             self.is_hotspot = self.aiproxy.is_hotspot_from_content_text()
 
     def _parse_is_creative(self):
+        """Determines if the post is creative using the AIProxy."""
         if self.aiproxy:
             self.is_creative = self.aiproxy.is_creative_from_content_text()
 
     def _parse_topic(self):
+        """Parses the topic of the post from the BeautifulSoup object."""
         if not self.soup:
             raise RuntimeError('Soup is not well inited since bad request')
 
         try:
             h3 = self.soup.find('div', class_='post-page').find('a', class_='wrap').find('h3')
             self.topic = h3.text.strip()
+        except AttributeError:
+            print('No topic found')
+            self.topic = None
         except RuntimeError as e:
             print(f"Error parsing topic for post '{self.title}': {e}")
 
     def _parse_post_type(self):
+        """Determines the post type using the AIProxy."""
         if self.aiproxy:
             self.post_type = self.aiproxy.get_post_type_from_content_text()
 
     def _parse_sentiment_type(self):
+        """Determines the sentiment type using the AIProxy."""
         if self.aiproxy:
             self.sentiment_type = self.aiproxy.get_sentiment_type_from_content_text()
 
     def _parse_like_count(self):
+        """Parses the like count from the BeautifulSoup object."""
         if not self.soup:
             raise RuntimeError('Soup is not well inited since bad request')
 
@@ -198,6 +260,7 @@ class Post:
             self.like_count = int(like_count)
 
     def _parse_author(self):
+        """Parses the author information from the BeautifulSoup object."""
         if not self.soup:
             raise RuntimeError('Soup is not well inited since bad request')
 
@@ -206,6 +269,7 @@ class Post:
             self.author = Author(author_a['href'])
 
     def _parse_content_text(self):
+        """Parses the content text from the BeautifulSoup object."""
         if not self.soup:
             raise RuntimeError('Soup is not well inited since bad request')
 
@@ -238,6 +302,11 @@ class Post:
         )
 
     def to_dict(self):
+        """Converts the Post object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the post.
+        """
         return {
             'title': self.title,
             'link': self.link,
@@ -294,11 +363,21 @@ class Post:
         return self > other or self == other
 
 
-def load_local_posts():
-    with open('./user_post_groups.json', 'rt', encoding='utf-8') as f:
+def load_local_posts() -> List[dict]:
+    """Loads posts from a local JSON file.
+
+    Returns:
+        List[dict]: A list of dictionaries, each representing a post.
+    """
+    with open(constants.USER_POSTS_JSON_FILE, 'rt', encoding='utf-8') as f:
         return json.load(f)
 
 def dump_top_100_posts_in_2024(posts: List[Post]):
+    """Dumps the top 100 posts (by like count) to a JSON file.
+
+    Args:
+        posts (List[Post]):  A list of Post Objects.
+    """
     json_file = './jike_2024_top_100_posts.json'
 
     # Sort posts in descending order of like_count (most likes first)
@@ -314,10 +393,13 @@ def dump_top_100_posts_in_2024(posts: List[Post]):
     with open(json_file, 'wt', encoding='utf-8') as f:
         json.dump(top_100_posts_dicts, f, indent=4, ensure_ascii=False)
 
-POSTS_JSON_FILE = './selection_posts.json'
-BACKUP_POSTS_JSON_FILE = './backup_posts.json'
+def dump_posts_to_json(posts: List[Post], json_file: str):
+    """Dumps a list of posts to a JSON file.
 
-def dump_posts_to_json(posts: List[Post], json_file):
+    Args:
+        posts (List[Post]): A list of Post objects.
+        json_file (str): The path to the output JSON file.
+    """
     # Convert posts to dictionaries
     post_dicts = [post.to_dict() for post in posts]
 
@@ -328,6 +410,14 @@ def dump_posts_to_json(posts: List[Post], json_file):
     print(f"Successfully dumped {len(posts)} posts to {json_file}")
 
 def load_posts_from_json(json_file: str) -> List[Post]:
+    """Loads posts from a JSON file.
+
+    Args:
+        json_file (str): The path to the JSON file.
+
+    Returns:
+        List[Post]: A list of Post objects.
+    """
     posts = []
 
     with open(json_file, 'rt', encoding='utf-8') as f:
@@ -357,17 +447,18 @@ def load_posts_from_json(json_file: str) -> List[Post]:
     return posts
 
 def main():
-    count = 0
-    posts = load_posts_from_json(POSTS_JSON_FILE)
+    """Main function to process and analyze Jike posts."""
+    posts = load_posts_from_json(constants.ANALYSED_POSTS_JSON_FILE)
 
     # backup posts
-    dump_posts_to_json(posts, BACKUP_POSTS_JSON_FILE)
+    dump_posts_to_json(posts, constants.BACKUP_ANALYSED_POSTS_JSON_FILE)
 
     init_posts_len = len(posts)
-    # init_posts_len = 355
-    increase_len = 25
+    # init_posts_len = 355 #  Used during the development
+    increase_len = 3
     target_posts_len = init_posts_len + increase_len
 
+    count = 0
     for dic in load_local_posts():
         count += 1
         if count <= init_posts_len:
@@ -380,14 +471,15 @@ def main():
             posts.append(post)
         except Exception as e:
             print(f'Error message: {str(e)}')
+            print(f'Error type: {type(e).__name__}')
+            traceback.print_exc()
 
-        if count % 20 == 0:
-            time.sleep(1)
+            break
 
         if count == target_posts_len:
             break
 
-    dump_posts_to_json(posts, POSTS_JSON_FILE)
+    dump_posts_to_json(posts, constants.ANALYSED_POSTS_JSON_FILE)
 
 if __name__ == "__main__":
     main()

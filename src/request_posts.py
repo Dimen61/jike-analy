@@ -1,3 +1,26 @@
+"""
+This script retrieves, parses, and saves posts from the Jike social media platform.
+
+It uses the Jike GraphQL API to fetch a user's posts, extracts relevant information
+(title, link, and date) from each post, and categorizes them as either "news" or
+"user posts." The script then displays the extracted data and saves the user
+posts to a JSON file. It continues fetching posts in a paginated manner until
+a specified number of dates' worth of posts have been retrieved.
+
+Key functionalities:
+
+- **Authentication:** Uses hardcoded Jike access and refresh tokens for API access.
+- **Pagination:** Handles API pagination using the `loadMoreKey` and `lastId` fields.
+- **Data Extraction:** Parses the raw post content to identify individual news items and links.
+- **Data Filtering:** Separates posts into "news" and "user posts" based on the URL.
+- **Data Storage:** Saves the extracted user posts to a JSON file.
+- **Rate Limiting:** Includes a short sleep period to avoid overwhelming the API.
+
+The script is designed to fetch posts for a specific user (implied by the
+hardcoded authentication tokens) and save them for later analysis.
+"""
+
+
 import json
 import time
 from enum import Enum
@@ -5,14 +28,26 @@ from typing import List
 
 import requests
 
+import constants
+
 
 class BriefPost:
+    """Represents a brief post with title, link, and date."""
 
     class PostType(Enum):
+        """Enum for post types: NEWS or USER_POST."""
         NEWS = "news"
         USER_POST = "user_post"
 
     def __init__(self, title, link, selected_date):
+        """
+        Initializes a BriefPost object.
+
+        Args:
+            title (str): The title of the post.
+            link (str): The URL link of the post.
+            selected_date (str): The date associated with the post.
+        """
         self.title = title
         self.link = link
         self.selected_date = selected_date
@@ -20,15 +55,22 @@ class BriefPost:
 
         # Sample case:
         # https://m.okjike.com/originalPosts/67bac4b2205950ba34848365
+        # Determine post type based on the link.
         if 'm.okjike.com' in self.link:
             self.type = self.PostType.USER_POST
         else:
             self.type = self.PostType.NEWS
 
-
 def load_graphql_query(last_id=None):
-    # Load the JSON file
-    with open('./graphql_payload.json', 'rt', encoding='utf-8') as file:
+    """Loads the GraphQL query from a JSON file and updates it with the last ID if provided.
+
+    Args:
+        last_id (str, optional): The last ID for pagination. Defaults to None.
+
+    Returns:
+        dict: The loaded GraphQL query payload.
+    """
+    with open(constants.GRAPHQL_PAYLOAD_JSON_FILE, 'rt', encoding='utf-8') as file:
         payload = json.load(file)
 
     if last_id:
@@ -36,6 +78,12 @@ def load_graphql_query(last_id=None):
     return payload
 
 def construct_header():
+    """Constructs the request header for the Jike API.
+
+    Returns:
+        dict: The constructed request header.  Includes necessary headers like
+        User-Agent, Content-Type, and authentication tokens.
+    """
     return {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -59,24 +107,33 @@ def construct_header():
     }
 
 def make_graphql_request(last_id=None):
-    URL = 'https://web-api.okjike.com/api/graphql'
+    """Makes a GraphQL request to the Jike API.
 
-    # Headers
+    Args:
+        last_id (str, optional): The last ID for pagination. Defaults to None.
+
+    Returns:
+        dict: The JSON response from the API.  Also saves the raw response to
+        a file.
+    """
     headers = construct_header()
-
-    # Request payload
     payload = load_graphql_query(last_id)
+    response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
 
-    # Make the request
-    response = requests.post(URL, json=payload, headers=headers)
-
-    # Dump into the file
-    with open('response.json', 'wt', encoding='utf-8') as f:
+    with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
         json.dump(response.json(), f, indent=2, ensure_ascii=False)
 
     return response.json()
 
 def parse_post_content(post_content:str):
+    """Parses the content of a post to extract individual brief posts.
+
+    Args:
+        post_content (str): The raw content string of a Jike post.
+
+    Returns:
+        List[BriefPost]: A list of extracted BriefPost objects.
+    """
     lst = post_content.split('\n')
     selected_date = lst[0]
     title = None
@@ -97,10 +154,17 @@ def parse_post_content(post_content:str):
     return brief_posts
 
 def extract_data(json_data):
-    # Debug
-    # print(json_data)
-    #
-    # user_name = json_data["data"]["userProfile"]["username"]
+    """Extracts relevant data from the Jike API JSON response.
+
+    Args:
+        json_data (dict): The JSON response from the Jike API.
+
+    Returns:
+        Tuple[List[List[BriefPost]], List[List[BriefPost]], str]: A tuple containing:
+            - A list of lists, where each inner list contains user posts for a single original post.
+            - A list of lists, where each inner list contains news posts for a single original post.
+            - The last ID for pagination (None if there's no next page).
+    """
     post_dict_list = json_data["data"]["userProfile"]["feeds"]["nodes"]
 
     last_id = None
@@ -122,6 +186,12 @@ def extract_data(json_data):
     return [selected_user_post_groups, selected_news_groups, last_id]
 
 def display_posts_groups(posts_groups: List[List[BriefPost]]):
+    """Displays the extracted brief posts grouped by their original post.
+
+    Args:
+        posts_groups (List[List[BriefPost]]):  A list of lists, where each inner
+            list contains BriefPost objects for a single original post.
+    """
     for posts in posts_groups:
         flag = False
         print('=' * 30)
@@ -136,7 +206,12 @@ def display_posts_groups(posts_groups: List[List[BriefPost]]):
             print('-' * 10)
 
 def save_posts(posts: List[BriefPost]):
-    with open('./user_post_groups.json', 'wt', encoding='utf-8') as f:
+    """Saves the extracted user posts to a JSON file.
+
+    Args:
+        posts (List[BriefPost]): A list of BriefPost objects to be saved.
+    """
+    with open(constants.USER_POSTS_JSON_FILE, 'wt', encoding='utf-8') as f:
         json.dump(
             [{'date': post.selected_date, 'title': post.title, 'link': post.link} for post in posts],
             f,
@@ -147,6 +222,15 @@ def save_posts(posts: List[BriefPost]):
         f.write('\n')
 
 def request_posts(max_date_num: int):
+    """Requests, parses, and saves Jike posts until a specified number of dates are retrieved.
+
+    This function iteratively fetches posts from the Jike API, extracts user and
+    news posts, displays them, and saves the user posts to a file.  It continues
+    fetching until the total number of dates retrieved reaches `max_date_num`.
+
+    Args:
+        max_date_num (int): The maximum number of dates to retrieve posts for.
+    """
     last_id = None
     date_count = 0
     total_user_posts = []
