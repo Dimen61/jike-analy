@@ -26,9 +26,36 @@ class NoAvailableModelError(Exception):
 
 
 class AIProxy:
+
+    models_pool = [
+        AIModel(name="gemini-2.0-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
+        AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
+        AIModel(name="gemini-2.0-flash-thinking-exp-01-21", max_call_num_per_min=10, max_call_num_per_day=1500),
+        AIModel(name="gemini-2.0-flash-exp", max_call_num_per_min=10, max_call_num_per_day=1500),
+
+        AIModel(name="gemini-1.5-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
+        AIModel(name="gemini-1.5-flash-8b", max_call_num_per_min=15, max_call_num_per_day=1500),
+    ]
+    model = models_pool[0]
+    model_retry_count = 0
+
     call_count_per_min = 0
     call_count_per_day = 0
     last_begin_call_time_per_min = datetime.now(timezone.utc)
+    last_success_call_time = datetime.now(timezone.utc)
+
+    @classmethod
+    def update_model(cls):
+        if len(cls.models_pool) <= 1:
+            raise NoAvailableModelError(" Available models pool is empty...")
+
+        cls.models_pool.pop(0)
+        cls.model = cls.models_pool[0]
+        print(f'Updated model: {cls.model.name}')
+
+        cls.model_retry_count = 0
+        cls.call_count_per_day = cls.call_count_per_min = 0
+        cls.last_begin_call_time_per_min = datetime.now(timezone.utc)
 
     @staticmethod
     def api_decorator(func):
@@ -38,8 +65,9 @@ class AIProxy:
             now = datetime.now(timezone.utc)
             time_since_last_call_per_min = now - AIProxy.last_begin_call_time_per_min
 
+            # Model call meets the minute limit
             if (
-                AIProxy.call_count_per_min == self.model.max_call_num_per_min
+                AIProxy.call_count_per_min == AIProxy.model.max_call_num_per_min
                 and time_since_last_call_per_min.total_seconds() <= 60
             ):
                 sleep_time_in_second = 60 - time_since_last_call_per_min.total_seconds()
@@ -49,25 +77,25 @@ class AIProxy:
                 time.sleep(sleep_time_in_second)
                 print('Retry API')
 
-                # Debug
-                print(f'last_call_time_per_min: {AIProxy.last_begin_call_time_per_min}')
-                print(f'time_since_last_call_per_min: {time_since_last_call_per_min}')
-                #
+                # print(f'last_call_time_per_min: {AIProxy.last_begin_call_time_per_min}')
+                # print(f'time_since_last_call_per_min: {time_since_last_call_per_min}')
 
                 AIProxy.call_count_per_min = 0
                 AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
 
                 return wrapper(self, *args, **kwargs)
-            elif AIProxy.call_count_per_day == self.model.max_call_num_per_day:
+
+            # Model call meets the day limit
+            elif AIProxy.call_count_per_day == AIProxy.model.max_call_num_per_day:
                 print('API call reached day limit')
                 print('Change model...')
 
-                AIProxy.call_count_per_day = AIProxy.call_count_per_min = 0
-                AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
-                self._init_model()
+                AIProxy.update_model()
                 self._init_chat()
 
                 return wrapper(self, *args, **kwargs)
+
+            # Reset last_begin_call_time_per_min
             elif time_since_last_call_per_min.total_seconds() > 60:
                 AIProxy.last_begin_call_time_per_min = now
 
@@ -75,26 +103,35 @@ class AIProxy:
                 AIProxy.call_count_per_min += 1
                 AIProxy.call_count_per_day += 1
 
-                print(f"Current call API time: {now}")
+                # print(f"Current call API time: {now}")
                 print(f"Current call count per minute: {AIProxy.call_count_per_min}")
                 print(f"Current call count per day: {AIProxy.call_count_per_day}")
 
                 ret = func(self, *args, **kwargs)
 
+                AIProxy.model_retry_count = 0
+                AIProxy.last_success_call_time = datetime.now(timezone.utc)
+
                 return ret
             except Exception as e:
-                self.model_retry_count += 1
+                AIProxy.model_retry_count += 1
+                now = datetime.now(timezone.utc)
+                time_since_last_success = now - AIProxy.last_success_call_time
 
-                if self.model_retry_count >= constants.MODEL_RETRY_MAX_NUM:
-                    print('API call reached day limit')
+                # Update model if retry count exceeds max or time since last success call is more than 2 minutes
+                if (
+                    AIProxy.model_retry_count >= constants.MODEL_RETRY_MAX_NUM
+                    # or time_since_last_success.total_seconds() >= 60 * 2
+                ):
+                    print('Model retry num meets the limit')
                     print('Change model...')
 
-                    AIProxy.call_count_per_day = AIProxy.call_count_per_min = 0
-                    AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
-                    self._init_model()
+                    AIProxy.update_model()
                     self._init_chat()
 
                     return wrapper(self, *args, **kwargs)
+
+                # Sleep for a minute before retrying
                 else:
                     print(f'API Error: {e}')
                     print(f'Error type: {type(e).__name__}')
@@ -111,46 +148,28 @@ class AIProxy:
 
                     AIProxy.call_count_per_min = 0
                     AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
+
                     return wrapper(self, *args, **kwargs)
 
         return wrapper
 
     def __init__(self, content_txt):
         self.content_txt = content_txt
-        self.models_pool = [
-            AIModel(name="gemini-2.0-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-thinking-exp-01-21", max_call_num_per_min=10, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-exp", max_call_num_per_min=10, max_call_num_per_day=1500),
-
-            AIModel(name="gemini-1.5-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
-            AIModel(name="gemini-1.5-flash-8b", max_call_num_per_min=15, max_call_num_per_day=1500),
-        ]
 
         api_key = os.environ.get("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
 
-        self.model = None
-        self.model_retry_count = 0
         self.chat= None
-        self._init_model()
         self._init_chat()
-
-    def _init_model(self):
-        if not self.models_pool:
-            raise NoAvailableModelError("Models pool is empty...")
-
-        self.model = self.models_pool.pop(0)
-        self.model_retry_count = 0
-        print(f'Current model: {self.model.name}')
 
     @api_decorator
     def _init_chat(self):
-        if not self.model:
+        if not AIProxy.model:
             raise RuntimeError("Model not initialized")
+        print(f'Current model: {AIProxy.model.name}')
 
         prompt = f"我将给你一段文本，然后给你一系列任务，对于现在这个问题，你不用回答.\n 文本内容:\n{self.content_txt}"
-        self.chat = self.client.chats.create(model=self.model.name)
+        self.chat = self.client.chats.create(model=AIProxy.model.name)
         response = self.chat.send_message(prompt)
         print(f'Chat response: {response.text}')
 

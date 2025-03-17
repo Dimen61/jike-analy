@@ -1,4 +1,6 @@
 import json
+import time
+import random
 import traceback
 from typing import List
 from urllib.parse import urljoin
@@ -454,8 +456,7 @@ def main():
     dump_posts_to_json(posts, constants.BACKUP_ANALYSED_POSTS_JSON_FILE)
 
     init_posts_len = len(posts)
-    # init_posts_len = 355 #  Used during the development
-    increase_len = 3
+    increase_len = 2
     target_posts_len = init_posts_len + increase_len
 
     count = 0
@@ -469,6 +470,11 @@ def main():
         try:
             post = Post(dic['title'], dic['link'], dic['date'])
             posts.append(post)
+        except ConnectionError as e:
+            print('Connection error, so ignore this post')
+            print(f'Connection error message: {str(e)}')
+            print(f'Connection error type: {type(e).__name__}')
+            traceback.print_exc()
         except Exception as e:
             print(f'Error message: {str(e)}')
             print(f'Error type: {type(e).__name__}')
@@ -477,7 +483,12 @@ def main():
             break
 
         if count == target_posts_len:
+            print('Finished...')
             break
+        else:
+            print(f'Unprocessed post number: {target_posts_len - count}')
+
+        time.sleep(random.uniform(2, 6))
 
     dump_posts_to_json(posts, constants.ANALYSED_POSTS_JSON_FILE)
 

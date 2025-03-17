@@ -12,4 +12,4 @@ ANALYSED_POSTS_JSON_FILE = './selection_posts.json'
 
 BACKUP_ANALYSED_POSTS_JSON_FILE = './backup_posts.json'
 
-MODEL_RETRY_MAX_NUM = 80
+MODEL_RETRY_MAX_NUM = 3
