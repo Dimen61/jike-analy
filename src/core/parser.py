@@ -10,8 +10,8 @@ from bs4 import BeautifulSoup
 from google.genai.operations import Optional
 
 import constants
-from aiproxy import AIProxy
-from post_types import ContentLengthType, PostType, SentimentType
+from core.aiproxy import AIProxy
+from core.enum_types import ContentLengthType, PostType, SentimentType
 
 
 class Author:
@@ -365,36 +365,6 @@ class Post:
         return self > other or self == other
 
 
-def load_local_posts() -> List[dict]:
-    """Loads posts from a local JSON file.
-
-    Returns:
-        List[dict]: A list of dictionaries, each representing a post.
-    """
-    with open(constants.USER_POSTS_JSON_FILE, 'rt', encoding='utf-8') as f:
-        return json.load(f)
-
-def dump_top_100_posts_in_2024(posts: List[Post]):
-    """Dumps the top 100 posts (by like count) to a JSON file.
-
-    Args:
-        posts (List[Post]):  A list of Post Objects.
-    """
-    json_file = './jike_2024_top_100_posts.json'
-
-    # Sort posts in descending order of like_count (most likes first)
-    sorted_posts = sorted(posts, reverse=True)
-
-    # Take the top 100 posts
-    top_100_posts = sorted_posts[:100]
-
-    # Convert to a list of dictionaries
-    top_100_posts_dicts = [post.to_dict() for post in top_100_posts]
-
-    # Write to JSON file
-    with open(json_file, 'wt', encoding='utf-8') as f:
-        json.dump(top_100_posts_dicts, f, indent=4, ensure_ascii=False)
-
 def dump_posts_to_json(posts: List[Post], json_file: str):
     """Dumps a list of posts to a JSON file.
 
@@ -410,6 +380,7 @@ def dump_posts_to_json(posts: List[Post], json_file: str):
         json.dump(post_dicts, f, indent=4, ensure_ascii=False)
 
     print(f"Successfully dumped {len(posts)} posts to {json_file}")
+
 
 def load_posts_from_json(json_file: str) -> List[Post]:
     """Loads posts from a JSON file.
@@ -447,6 +418,39 @@ def load_posts_from_json(json_file: str) -> List[Post]:
             posts.append(post)
 
     return posts
+
+
+def load_local_posts() -> List[dict]:
+    """Loads posts from a local JSON file.
+
+    Returns:
+        List[dict]: A list of dictionaries, each representing a post.
+    """
+    with open(constants.USER_POSTS_JSON_FILE, 'rt', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def dump_top_100_posts_in_2024(posts: List[Post]):
+    """Dumps the top 100 posts (by like count) to a JSON file.
+
+    Args:
+        posts (List[Post]):  A list of Post Objects.
+    """
+    json_file = './jike_2024_top_100_posts.json'
+
+    # Sort posts in descending order of like_count (most likes first)
+    sorted_posts = sorted(posts, reverse=True)
+
+    # Take the top 100 posts
+    top_100_posts = sorted_posts[:100]
+
+    # Convert to a list of dictionaries
+    top_100_posts_dicts = [post.to_dict() for post in top_100_posts]
+
+    # Write to JSON file
+    with open(json_file, 'wt', encoding='utf-8') as f:
+        json.dump(top_100_posts_dicts, f, indent=4, ensure_ascii=False)
+
 
 def main():
     """Main function to process and analyze Jike posts."""

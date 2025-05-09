@@ -10,7 +10,7 @@ from typing import List, Optional
 from google import genai
 
 import constants
-from post_types import PostType, SentimentType
+from core.enum_types import PostType, SentimentType
 
 
 @dataclass

@@ -106,7 +106,7 @@ def construct_header():
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiekJ0UTArTVZCUEFVTklCYjBiMTlkWHFCN3RaOFBBKzNHYURET0FoSkdNa0VyTldFOUMyeCtxMmlOQXlzQUpLclVZQ1U3S3U0S1FqYnpmXC9QVTFiNjVNeGNDYStDTFwvK0ZPdzNuWFJMSXNtZGUzdUg4cGh0dHphbGhsR1N2ekltM1RKNk1PSmFidDgwVnRCbHRDTlkwVnI2Rk03Mk1qQTlmbitzU1YzUGpidXM9IiwidiI6MywiaXYiOiJaamJZOU9pSHVEUHNsQWY5aWQ3TFh3PT0iLCJpYXQiOjE3NDA0NjA3OTMuODUyfQ.xkThng4f_OL917hRnYJqtu0S4LQQTLiPIX9jkvBePbQ',
     }
 
-def make_graphql_request(last_id=None):
+def fetch_jike_data(last_id=None):
     """Makes a GraphQL request to the Jike API.
 
     Args:
@@ -120,13 +120,14 @@ def make_graphql_request(last_id=None):
     payload = load_graphql_query(last_id)
     response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
 
+    # Dump tmp data for checkpoint
     with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
         json.dump(response.json(), f, indent=2, ensure_ascii=False)
 
     return response.json()
 
-def parse_post_content(post_content:str):
-    """Parses the content of a post to extract individual brief posts.
+def extract_post_content(post_content:str):
+    """Extract the content of a post to extract individual brief posts.
 
     Args:
         post_content (str): The raw content string of a Jike post.
@@ -175,7 +176,7 @@ def extract_data(json_data):
     selected_user_post_groups = []
     selected_news_groups = []
     for post_dict in post_dict_list:
-        selected_posts = parse_post_content(post_dict["content"])
+        selected_posts = extract_post_content(post_dict["content"])
 
         user_posts = list(filter(lambda post: post.type == BriefPost.PostType.USER_POST, selected_posts))
         news_posts = list(filter(lambda post: post.type == BriefPost.PostType.NEWS, selected_posts))
@@ -221,7 +222,7 @@ def save_posts(posts: List[BriefPost]):
 
         f.write('\n')
 
-def request_posts(max_date_num: int):
+def crawl_posts(max_date_num: int):
     """Requests, parses, and saves Jike posts until a specified number of dates are retrieved.
 
     This function iteratively fetches posts from the Jike API, extracts user and
@@ -236,7 +237,7 @@ def request_posts(max_date_num: int):
     total_user_posts = []
 
     while True:
-        json_data = make_graphql_request(last_id)
+        json_data = fetch_jike_data(last_id)
         selected_user_post_groups, _, last_id = extract_data(json_data)
 
         for posts in selected_user_post_groups:
@@ -258,4 +259,5 @@ def request_posts(max_date_num: int):
 
 
 if __name__ == '__main__':
-    request_posts(365 + 60)
+    # crawl_posts(365 + 60)
+    crawl_posts(1)

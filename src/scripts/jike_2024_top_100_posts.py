@@ -5,8 +5,7 @@ the title, like count, and link for each post.
 
 import json
 
-
-POSTS_JSON_FILE = "./jike_2024_top_100_posts.json"
+from constants import JIKE_2024_TOP_100_POSTS_FILE
 
 
 def display_post(index: int, post: dict):
@@ -16,7 +15,7 @@ def display_post(index: int, post: dict):
     print(f'  {post["link"]}')
 
 
-with open(POSTS_JSON_FILE, "rt") as f:
+with open(JIKE_2024_TOP_100_POSTS_FILE, "rt") as f:
     posts = json.load(f)
 
     for index, post in enumerate(posts, start=1):
