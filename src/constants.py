@@ -1,4 +1,5 @@
-JIKE_API_URL = 'https://web-api.okjike.com/api/graphql'
+# JIKE_API_URL = 'https://web-api.okjike.com/api/graphql'
+JIKE_API_URL = 'https://api.ruguoapp.com/1.0/personalUpdate/single'
 
 JIKE_URL = 'https://m.okjike.com'
 

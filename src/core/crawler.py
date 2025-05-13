@@ -1,7 +1,7 @@
 """
 This script retrieves, parses, and saves posts from the Jike social media platform.
 
-It uses the Jike GraphQL API to fetch a user's posts, extracts relevant information
+It uses the Jike API(from GraphQL to restful, offical API changes) to fetch a user's posts, extracts relevant information
 (title, link, and date) from each post, and categorizes them as either "news" or
 "user posts." The script then displays the extracted data and saves the user
 posts to a JSON file. It continues fetching posts in a paginated manner until
@@ -77,7 +77,7 @@ def load_graphql_query(last_id=None):
         payload['variables']['loadMoreKey'] = {'lastId': str(last_id)}
     return payload
 
-def construct_header():
+def construct_header_v0():
     """Constructs the request header for the Jike API.
 
     Returns:
@@ -98,16 +98,52 @@ def construct_header():
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-        # "Cookie": "_gid=GA1.2.1836417803.1740363107; fetchRankedUpdate=1740363449633; _ga_LQ23DKJDEL=GS1.2.1740391370.7.1.1740392140.60.0.0; _ga_5ES45LSTYC=GS1.1.1740392602.7.1.1740393474.60.0.0; _ga=GA1.1.1091261079.1723031242; x-jike-access-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiMWRua2F3K2RFOVNOOFFPWUp5MGhCSHRGVzdIUThKaWtNeEJDMVJcL2twMUk2ZXZ1RUNsTStseFBLQXAwV0VWblE2YVhPd05WRlN4aEZGejRLTGlmU2lneEtoTzBjdFwvMFYxS3lTNmFoZDdLaThJRFE0VTQ3SnpsNEppb3Q2a2RNQ1pPcVhYbllcL05ZNHhPNkp3NnVBd2VDY2Z6S0J6VzdjSGhYYXhXc0txMDhHMWNYaVdrNUZYenY4UThST3NMWGJnVjk2NWJ3NjhLZDEwTTlVUFA0a29FWEppOEFyM3M5ZXVcL25zeEVoQXc5OWlwc0JWZW1IOWVwNnlOcGRVanJaN0Z3d2RvVzh2dnRJVmxzMDdjRFdQVENUdGN1MVJQcG8yNkh5V0dzVktMOFwvV0N2am5KazR5ZFN4MjdqanNxOTlpRHF6TjhiQ1RQbUI2VnpoTVBcL2FGU1FMZFphMGlRT1UxV2oyR3B0VHh2WWVzPSIsInYiOjMsIml2IjoiRHVicEZrUU9naDR2VVJleDJjaGg1dz09IiwiaWF0IjoxNzQwMzk0NTkwLjMxOH0.RIdo7lJS96aGS5gHQ9SGxg_LahrxCXA0PRkqyg_O_sE; x-jike-refresh-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoidHRpM2MrR1hFOHBBOGdEdWZWbnU0UjZNWkIzUDA5Z3NZT0I4Y3ZjQkJvOFlJTFRzRm0zVWZYYVhyRVNpY3V5eGJYMXlPdDBmeE5uMStzcEdQVjcxMVkwdHM5Sk9KbUk3Z1cxaGd4akp3ZlJVZlpaM0F4RGpEVGdGVGZIZ1I1SlpEbDZEWEdhcU5IbHc3cGcxM2pmaTBxdGtSbXNQQmt4bGhGMXQxczBubm5ZPSIsInYiOjMsIml2IjoiU1FCSFNWcU1tYml6TW9CcSs5cmlwdz09IiwiaWF0IjoxNzQwMzk0NTkwLjMxOH0.bgN9qXiUfTEKMABPs3Ab46rQK8CpGNk_ewYQ3CdxC94",
 
-        'x-jike-access-token':
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoieFF0K1FDUlc3YnJUc3dhVitLVVVwSVg1NmFXOU1SbzA2WHJcL21SYWdqbjB5TGQ2Y1k5c0JmXC9wdzg0VWt2VFUwYnpUWFoxUkk3M0hMREtiYVwvR3ZpTzZxZllCSG9lUVpmMWZ3RUFianpVUnJIY1Qxcnh5ZlwvbUNWMnVOYjhOWGNhcDRXK1wvUnZCOHZcL3FZQWVzeGwzZXJMZDFoMzRYMFFoT2dsWWdOK1Rta2pNT2dTNWRCeFNwb1pReXdMZ3pWemo4eGl4azZnTXBCVDUxS0xaSWIxenJQVVBLMVZXbWlrakxvMExqZExXQmZcL01QS1MyRDhQY1F6VXhSZ2hkUjNrVVI2bG5OVjRkaSsxcEhSVkxrdWdDM2h6QWNIeHhxMWxXXC9PaUlLdHZDeDd0dGdQMDdtRm41R0tQNDVjWlRpYlZuTVZGcm9mS0dWTVFETUwwdGRMbWxrSXVLS3BWRldlTVREekl1OXFVdzhSUzA9IiwidiI6MywiaXYiOiJrY1VqSnFXcDc4cDZrZENYMElHYVdnPT0iLCJpYXQiOjE3NDA0NjA3OTMuODUyfQ.4PqGx0bfAk43KVly--xebOxC4ylLyegw_VQ1lRLoUbQ',
+        'x-jike-access-token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiXC91aFcrZFhQOTJGbHYrYTVpbDB3eGZaeVhQV2x0RWc5UXU5aDZvVHNhWTJMY1JEVXRwQzZKSHFlZVdERk1PRnpKUExqZ2x0VGNrN2NOck9tQW5WY2RUeWlXanY1RnJLT3lHXC9HbkdHY09OYWJtZUczXC8yOTAyTFwvSmJkWlI3SGsrWFFYd0JvVGpsSEVaZWQ4bU94Q01KV01VWGdmaXhcLzgyem03TWIrWEhqMHFcL0JTeld5ODdxc1QwZGUwb3U2S252WUluQ3p1WUVWWGZXSDQ0U084N1o4em5FTm9JNm1IeUV5Z1FLTGkxN1lUNTUydHZLXC9vMTRabFJ1VGxId3N2MkVkdjNJZHVKSXQ5UERNYTF2R1RMOWFFajNrTjUwQzdqYW9zeWRCRTdKbUp6eStVMzQ3TXZwK2F3WFBZbFRnY1NqVnVNREpBR0JBdUZ5TlFSd01ObWZPZ1gwQVBpbVZ1XC83akZodXhZRmNMclE9IiwidiI6MywiaXYiOiJaa3pacDZtaDM4cVwvSGhORzNtNTVvZz09IiwiaWF0IjoxNzQ2NzgxNTE0LjMzOX0._g8F7akT-7QTRKiSph__kuDkALKCtnmaJTtc-mNTmx0',
         'x-jike-refresh-token':
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiekJ0UTArTVZCUEFVTklCYjBiMTlkWHFCN3RaOFBBKzNHYURET0FoSkdNa0VyTldFOUMyeCtxMmlOQXlzQUpLclVZQ1U3S3U0S1FqYnpmXC9QVTFiNjVNeGNDYStDTFwvK0ZPdzNuWFJMSXNtZGUzdUg4cGh0dHphbGhsR1N2ekltM1RKNk1PSmFidDgwVnRCbHRDTlkwVnI2Rk03Mk1qQTlmbitzU1YzUGpidXM9IiwidiI6MywiaXYiOiJaamJZOU9pSHVEUHNsQWY5aWQ3TFh3PT0iLCJpYXQiOjE3NDA0NjA3OTMuODUyfQ.xkThng4f_OL917hRnYJqtu0S4LQQTLiPIX9jkvBePbQ',
     }
 
+def construct_header_v1():
+    """Constructs the request header for the Jike API.
+
+    Returns:
+        dict: The constructed request header.  Includes necessary headers like
+        User-Agent, Content-Type, and authentication tokens.
+    """
+    return {
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7,ja;q=0.6",
+        "Content-Type": "application/json",
+        "Origin": "https://web.okjike.com",
+        "Priority": "u=1, i",
+        "Sec-Ch-Ua": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+
+        # "X-Jike-Access-Token": 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoidjJjdTBFekNxbUxrd0hCSCtJN3FPVGoycUtSdkx3QUlyaDI4NE9aUlNRWGo0amdmZDZzNkZkY240aG1nXC9XbzNaN1VqWEVqMnBQMXQ5V0JqTlN6N2Z4VFplSTNZbGZPOU9QVWszeGpObGdtcnpMS1hZSjYzOXFheTBSNDF4VktDZTh0dUlMRXRvdVdmMjZOZEhyeFNDM0k0ZUR1K05raHdtc2ExK1lmTFRQMkt2WTRHU2FQWHBKS1wvYW1kaFo4eVJmYlJKVlhZVUIzdDJ1cVwvMzVYM05XNU5BRXpnMVwveVdyTDBJYTJPeGVTaFlTemtLY2tadlJSUzVtMDVGUlJ6alFGR0dzR09ZRDRMS1JlYUVQS0MzZGlVRDZMTDZBZnZiWUhjMGlxdVJPbjRMNzBIZjc3b0t1Q1JrMHFacmljTnBHNFJrVTRiTyt5cndvSFM0WlIyYlwvXC80S3F0YnZXTVRMREVWOVQxenVOWENFPSIsInYiOjMsIml2IjoiRVZuOUVEaDBZU2FBekJSVEdHUGJOUT09IiwiaWF0IjoxNzQ3MDM3MjQ1LjUzNH0.7bhTE1cQa4jBLo_MnpvveS1WF7O_yRzVAfTj2T2TloU'
+
+        "X-Jike-Access-Token":
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiTlBtMTNRcldoSVc1ejJKZjlPRGpXT3hHNkxFZFBEVjlES2FlRkR4bUhmejZxTFQyREdRRmI3UHUxT0lFMG9xSzJsXC9GanVOMk5OQXpcL2xMMkR6ZkZMaFp0MGVDSitTTE5ybmdkRUV6N3pSOGtvaU14UTg1VjkyRDk0WndhMGxEUzN1UlE1TlpUUlR0eW9iRjFWamlzSHlqamM3RTRuWHZySm9Vb2ZoS09RbllVaTRMZUEzQnBsc2R3ZVlhSm50ZUtVVnErQ3hiTzRlUmkxeWl3REJ6TUxkSGVRc3NCZmVGVTA5bVwvVEorWG41VEVPM2tLVkZtTGVDZ1k2QUNFME41SDBFSG1QTldKbExIK256R0ZxK2pHblFGdkhBRGh1TWN0d2JzQlBIOWk3SndPTDVGclREaHd0Mlpib1pkY3ZJbyswV096NGVyWXFzODkwNWQ0RlwvamM3QU1KamEzMFwvaFBuWDNwU0FzeHpvUHc9IiwidiI6MywiaXYiOiJ2NndDclZwV3F1R2xpVnFSRktOMW53PT0iLCJpYXQiOjE3NDcwNTI2MzQuMDM2fQ.DhWsgMs773tuxY7JUVN9gLihWqG0cZwNc6x_Ro_6LNM'
+    }
+
+def construct_payload_v0():
+    return load_graphql_query()
+
+def construct_payload_v1(last_id=None):
+    res_json = {"limit":20,"username":"wenhao1996"}
+    if last_id:
+        res_json["loadMoreKey"] = { "lastId": last_id }
+
+    return res_json
+
 def fetch_jike_data(last_id=None):
-    """Makes a GraphQL request to the Jike API.
+    """Makes a GraphQL or Restful request to the Jike API.
 
     Args:
         last_id (str, optional): The last ID for pagination. Defaults to None.
@@ -116,9 +152,13 @@ def fetch_jike_data(last_id=None):
         dict: The JSON response from the API.  Also saves the raw response to
         a file.
     """
-    headers = construct_header()
-    payload = load_graphql_query(last_id)
+    headers = construct_header_v1()
+    payload = construct_payload_v1(last_id)
     response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
+
+    print('-' * 20)
+    print(f'response status code: {response.status_code}')
+    print('-' * 20)
 
     # Dump tmp data for checkpoint
     with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
@@ -154,7 +194,7 @@ def extract_post_content(post_content:str):
 
     return brief_posts
 
-def extract_data(json_data):
+def extract_data_v0(json_data):
     """Extracts relevant data from the Jike API JSON response.
 
     Args:
@@ -185,6 +225,36 @@ def extract_data(json_data):
         selected_news_groups.append(news_posts)
 
     return [selected_user_post_groups, selected_news_groups, last_id]
+
+def extract_data_v1(json_data):
+    """Extracts relevant data from the Jike API JSON response.
+
+    Args:
+        json_data (dict): The JSON response from the Jike API.
+
+    Returns:
+        Tuple[List[List[BriefPost]], List[List[BriefPost]], str]: A tuple containing:
+            - A list of lists, where each inner list contains user posts for a single original post.
+            - A list of lists, where each inner list contains news posts for a single original post.
+            - The last ID for pagination (None if there's no next page).
+    """
+    post_dict_list = json_data["data"]
+
+    last_id = json_data.get("loadMoreKey", {}).get("lastId", None)
+
+    selected_user_post_groups = []
+    selected_news_groups = []
+    for post_dict in post_dict_list:
+        selected_posts = extract_post_content(post_dict["content"])
+
+        user_posts = list(filter(lambda post: post.type == BriefPost.PostType.USER_POST, selected_posts))
+        news_posts = list(filter(lambda post: post.type == BriefPost.PostType.NEWS, selected_posts))
+
+        selected_user_post_groups.append(user_posts)
+        selected_news_groups.append(news_posts)
+
+    return [selected_user_post_groups, selected_news_groups, last_id]
+
 
 def display_posts_groups(posts_groups: List[List[BriefPost]]):
     """Displays the extracted brief posts grouped by their original post.
@@ -238,7 +308,7 @@ def crawl_posts(max_date_num: int):
 
     while True:
         json_data = fetch_jike_data(last_id)
-        selected_user_post_groups, _, last_id = extract_data(json_data)
+        selected_user_post_groups, _, last_id = extract_data_v1(json_data)
 
         for posts in selected_user_post_groups:
             total_user_posts.extend(posts)
@@ -259,5 +329,6 @@ def crawl_posts(max_date_num: int):
 
 
 if __name__ == '__main__':
+    print('Begin to crawl...')
     # crawl_posts(365 + 60)
     crawl_posts(1)
