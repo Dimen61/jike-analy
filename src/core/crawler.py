@@ -27,6 +27,7 @@ from enum import Enum
 from typing import List
 
 import requests
+from requests.exceptions import RequestException
 
 import constants
 
@@ -129,42 +130,65 @@ def construct_header_v1():
         # "X-Jike-Access-Token": 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoidjJjdTBFekNxbUxrd0hCSCtJN3FPVGoycUtSdkx3QUlyaDI4NE9aUlNRWGo0amdmZDZzNkZkY240aG1nXC9XbzNaN1VqWEVqMnBQMXQ5V0JqTlN6N2Z4VFplSTNZbGZPOU9QVWszeGpObGdtcnpMS1hZSjYzOXFheTBSNDF4VktDZTh0dUlMRXRvdVdmMjZOZEhyeFNDM0k0ZUR1K05raHdtc2ExK1lmTFRQMkt2WTRHU2FQWHBKS1wvYW1kaFo4eVJmYlJKVlhZVUIzdDJ1cVwvMzVYM05XNU5BRXpnMVwveVdyTDBJYTJPeGVTaFlTemtLY2tadlJSUzVtMDVGUlJ6alFGR0dzR09ZRDRMS1JlYUVQS0MzZGlVRDZMTDZBZnZiWUhjMGlxdVJPbjRMNzBIZjc3b0t1Q1JrMHFacmljTnBHNFJrVTRiTyt5cndvSFM0WlIyYlwvXC80S3F0YnZXTVRMREVWOVQxenVOWENFPSIsInYiOjMsIml2IjoiRVZuOUVEaDBZU2FBekJSVEdHUGJOUT09IiwiaWF0IjoxNzQ3MDM3MjQ1LjUzNH0.7bhTE1cQa4jBLo_MnpvveS1WF7O_yRzVAfTj2T2TloU'
 
         "X-Jike-Access-Token":
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiTlBtMTNRcldoSVc1ejJKZjlPRGpXT3hHNkxFZFBEVjlES2FlRkR4bUhmejZxTFQyREdRRmI3UHUxT0lFMG9xSzJsXC9GanVOMk5OQXpcL2xMMkR6ZkZMaFp0MGVDSitTTE5ybmdkRUV6N3pSOGtvaU14UTg1VjkyRDk0WndhMGxEUzN1UlE1TlpUUlR0eW9iRjFWamlzSHlqamM3RTRuWHZySm9Vb2ZoS09RbllVaTRMZUEzQnBsc2R3ZVlhSm50ZUtVVnErQ3hiTzRlUmkxeWl3REJ6TUxkSGVRc3NCZmVGVTA5bVwvVEorWG41VEVPM2tLVkZtTGVDZ1k2QUNFME41SDBFSG1QTldKbExIK256R0ZxK2pHblFGdkhBRGh1TWN0d2JzQlBIOWk3SndPTDVGclREaHd0Mlpib1pkY3ZJbyswV096NGVyWXFzODkwNWQ0RlwvamM3QU1KamEzMFwvaFBuWDNwU0FzeHpvUHc9IiwidiI6MywiaXYiOiJ2NndDclZwV3F1R2xpVnFSRktOMW53PT0iLCJpYXQiOjE3NDcwNTI2MzQuMDM2fQ.DhWsgMs773tuxY7JUVN9gLihWqG0cZwNc6x_Ro_6LNM'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiNFNmcEIweHZGbTVsY2JzSHlFbXh3Y1JmMDNraGV5UVVHT0VaRDljdHROQUxIZEdcL0xYUkMyNEhvTmJqekVkRzdURkw4K2tiMzM0U21BaHoyMkJyQU81SDl3OFY5WHZZdUlXb24zTTlrdnRXZ0dacXVCMW5yc0Q2bUdUdVV3UURDS3Y4VEp1VTU3WVRUNXFsMlU3NlNWMWVCN1wvVklRamJjVXhZU2liZk1JZHQrRUJpbUJSWndPRGZKZFgwTGRkYWN6Tk1EeGVIaHlVa1ZNd0xqa0hGcUxXYkRSS2c5ekRqSkJ1NVRuNVwvMG5mTUFpcUNyMUxZYWhWXC8wWmY5bk1kS0hwejRZVGNVOXpQSnJuaUFTVDFFb3puRUhFNm0rUldVTVwvVEZnRDhEeEVTQjRGb3JWN0hCS0k0NVwvcHI5R1F4aGcwQWZBNFpJYjNLOG9jWUh3TUU5NTVoaWZEMUpyOWJybVFTTldSTVBDWlR3PSIsInYiOjMsIml2IjoiWlVnRWwwcXRFSEUwY1h4cUpzcFJlUT09IiwiaWF0IjoxNzQ3MTg5NTQxLjU1MX0.D7gsZhnhrwScrjdb-kmuQlDg8MK-yNuH9S-THlZ-OSk'
     }
 
 def construct_payload_v0():
     return load_graphql_query()
 
-def construct_payload_v1(last_id=None):
-    res_json = {"limit":20,"username":"wenhao1996"}
+def construct_payload_v1(last_id=None, request_limit_num=20):
+    res_json = {"limit": request_limit_num,"username":"wenhao1996"}
     if last_id:
         res_json["loadMoreKey"] = { "lastId": last_id }
 
     return res_json
 
-def fetch_jike_data(last_id=None):
-    """Makes a GraphQL or Restful request to the Jike API.
+def fetch_jike_data(rest_date_num, last_id=None, max_retries=3):
+    """Makes a GraphQL or Restful request to the Jike API with retry logic.
 
     Args:
         last_id (str, optional): The last ID for pagination. Defaults to None.
+        max_retries (int): Maximum number of retries for API request.
 
     Returns:
-        dict: The JSON response from the API.  Also saves the raw response to
-        a file.
+        dict: The JSON response from the API. Also saves the raw response to a file.
+        None: If the API request fails after multiple retries.
     """
     headers = construct_header_v1()
-    payload = construct_payload_v1(last_id)
-    response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
 
-    print('-' * 20)
-    print(f'response status code: {response.status_code}')
-    print('-' * 20)
+    for attempt in range(max_retries):
+        try:
+            payload = construct_payload_v1(last_id, rest_date_num)
 
-    # Dump tmp data for checkpoint
-    with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
-        json.dump(response.json(), f, indent=2, ensure_ascii=False)
+            response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
-    return response.json()
+            print('-' * 20)
+            print(f'response status code: {response.status_code}')
+            print('-' * 20)
+
+            # Dump tmp data for checkpoint
+            with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
+                json.dump(response.json(), f, indent=2, ensure_ascii=False)
+
+            return response.json()
+
+        except RequestException as e:
+            print(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                rest_date_num /= 4        # decrease request date number per request
+                print(f"Waiting {wait_time} seconds before retrying...")
+                time.sleep(wait_time)
+            else:
+                print("Max retries reached.  Failed to fetch data.")
+                return None  # Or raise the exception if you want the program to halt
+        except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {e}")
+            return None
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
 
 def extract_post_content(post_content:str):
     """Extract the content of a post to extract individual brief posts.
@@ -292,7 +316,7 @@ def save_posts(posts: List[BriefPost]):
 
         f.write('\n')
 
-def crawl_posts(max_date_num: int):
+def crawl_posts(total_date_num: int):
     """Requests, parses, and saves Jike posts until a specified number of dates are retrieved.
 
     This function iteratively fetches posts from the Jike API, extracts user and
@@ -307,7 +331,13 @@ def crawl_posts(max_date_num: int):
     total_user_posts = []
 
     while True:
-        json_data = fetch_jike_data(last_id)
+        rest_date_num = total_date_num - date_count
+        json_data = fetch_jike_data(rest_date_num, last_id)
+
+        if json_data is None:
+            print("Failed to fetch data, exiting crawl.")
+            break
+
         selected_user_post_groups, _, last_id = extract_data_v1(json_data)
 
         for posts in selected_user_post_groups:
@@ -320,7 +350,7 @@ def crawl_posts(max_date_num: int):
         date_count += len(selected_user_post_groups)
         print(f'Date Count: {date_count}')
 
-        if date_count >= max_date_num:
+        if date_count >= total_date_num:
             break
 
         print('Start to sleep...')
@@ -330,5 +360,5 @@ def crawl_posts(max_date_num: int):
 
 if __name__ == '__main__':
     print('Begin to crawl...')
-    # crawl_posts(365 + 60)
-    crawl_posts(1)
+    crawl_posts(365 + 60)
+    # crawl_posts(1)
