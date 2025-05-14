@@ -22,6 +22,7 @@ hardcoded authentication tokens) and save them for later analysis.
 
 
 import json
+import os
 import time
 from enum import Enum
 from typing import List
@@ -61,6 +62,19 @@ class BriefPost:
             self.type = self.PostType.USER_POST
         else:
             self.type = self.PostType.NEWS
+
+    def to_dict(self):
+        """Converts the BriefPost object to a dictionary."""
+        return {
+            'title': self.title,
+            'link': self.link,
+            'selected_date': self.selected_date
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Creates a BriefPost object from a dictionary."""
+        return cls(data['title'], data['link'], data['selected_date'])
 
 def load_graphql_query(last_id=None):
     """Loads the GraphQL query from a JSON file and updates it with the last ID if provided.
@@ -130,7 +144,7 @@ def construct_header_v1():
         # "X-Jike-Access-Token": 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoidjJjdTBFekNxbUxrd0hCSCtJN3FPVGoycUtSdkx3QUlyaDI4NE9aUlNRWGo0amdmZDZzNkZkY240aG1nXC9XbzNaN1VqWEVqMnBQMXQ5V0JqTlN6N2Z4VFplSTNZbGZPOU9QVWszeGpObGdtcnpMS1hZSjYzOXFheTBSNDF4VktDZTh0dUlMRXRvdVdmMjZOZEhyeFNDM0k0ZUR1K05raHdtc2ExK1lmTFRQMkt2WTRHU2FQWHBKS1wvYW1kaFo4eVJmYlJKVlhZVUIzdDJ1cVwvMzVYM05XNU5BRXpnMVwveVdyTDBJYTJPeGVTaFlTemtLY2tadlJSUzVtMDVGUlJ6alFGR0dzR09ZRDRMS1JlYUVQS0MzZGlVRDZMTDZBZnZiWUhjMGlxdVJPbjRMNzBIZjc3b0t1Q1JrMHFacmljTnBHNFJrVTRiTyt5cndvSFM0WlIyYlwvXC80S3F0YnZXTVRMREVWOVQxenVOWENFPSIsInYiOjMsIml2IjoiRVZuOUVEaDBZU2FBekJSVEdHUGJOUT09IiwiaWF0IjoxNzQ3MDM3MjQ1LjUzNH0.7bhTE1cQa4jBLo_MnpvveS1WF7O_yRzVAfTj2T2TloU'
 
         "X-Jike-Access-Token":
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiNFNmcEIweHZGbTVsY2JzSHlFbXh3Y1JmMDNraGV5UVVHT0VaRDljdHROQUxIZEdcL0xYUkMyNEhvTmJqekVkRzdURkw4K2tiMzM0U21BaHoyMkJyQU81SDl3OFY5WHZZdUlXb24zTTlrdnRXZ0dacXVCMW5yc0Q2bUdUdVV3UURDS3Y4VEp1VTU3WVRUNXFsMlU3NlNWMWVCN1wvVklRamJjVXhZU2liZk1JZHQrRUJpbUJSWndPRGZKZFgwTGRkYWN6Tk1EeGVIaHlVa1ZNd0xqa0hGcUxXYkRSS2c5ekRqSkJ1NVRuNVwvMG5mTUFpcUNyMUxZYWhWXC8wWmY5bk1kS0hwejRZVGNVOXpQSnJuaUFTVDFFb3puRUhFNm0rUldVTVwvVEZnRDhEeEVTQjRGb3JWN0hCS0k0NVwvcHI5R1F4aGcwQWZBNFpJYjNLOG9jWUh3TUU5NTVoaWZEMUpyOWJybVFTTldSTVBDWlR3PSIsInYiOjMsIml2IjoiWlVnRWwwcXRFSEUwY1h4cUpzcFJlUT09IiwiaWF0IjoxNzQ3MTg5NTQxLjU1MX0.D7gsZhnhrwScrjdb-kmuQlDg8MK-yNuH9S-THlZ-OSk'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiQlQzVXM5N3FxV1ZoYWNiQTZtdFE5YWxcL2wydzJMa25wWmpEYlhrZ2xuUzUrS0dzdmZHdWZzOVlCWTRYYk5tbGRnZzIwXC9qZXNQM3JxRm0ra1NFUTB4OTdaUXlFMkc4bmUyNGt6dkx2dXd6MFBJSVVaSEYrZXF2SVwvT1luSVVOS1RVYUpuSzIyQnRlbEJWM2dNcG0rQVk1dm9nd2dHYzFoUm9oTjFpVUwrMjRvSjBiQ01iT1VxaUl2QnQ2eXo2K1UxOStoK3JwelpzNjdZM2IxVXF4MWZ2eTgwdW5CZHdmeFdxcDFETm9uaExwdHFFVkhSYkJkODNYdWpDdzRONk5WdXdMSmNcL1dpN3ZuQnUzSlVXcncwVnAxZUgwUldGRzRLdENXcU1yanhSNHd0YW04TDV3RlNHa1lFb1wvcmNmQllDRG9BbnBjcVwvXC9lRjU1SjZoXC9TZERleDVhZTV6eUNRMzBcL1ppbzVFOTNZbDc0PSIsInYiOjMsIml2IjoiZEcwajBBVnJST0lRRkVzRUtQZUx2UT09IiwiaWF0IjoxNzQ3MjA4MjIwLjUxfQ.D1sBYd55VFuNV7aPEx8_8veZrH8NrW-9PVFzzg1DRY8'
     }
 
 def construct_payload_v0():
@@ -167,8 +181,8 @@ def fetch_jike_data(rest_date_num, last_id=None, max_retries=3):
             print(f'response status code: {response.status_code}')
             print('-' * 20)
 
-            # Dump tmp data for checkpoint
-            with open(constants.RAW_RESPONSE_JSON_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
+            # Dump tmp data for checking
+            with open(constants.RAW_RESPONSE_FILE_FROM_JIKE, 'wt', encoding='utf-8') as f:
                 json.dump(response.json(), f, indent=2, ensure_ascii=False)
 
             return response.json()
@@ -306,7 +320,7 @@ def save_posts(posts: List[BriefPost]):
     Args:
         posts (List[BriefPost]): A list of BriefPost objects to be saved.
     """
-    with open(constants.USER_POSTS_JSON_FILE, 'wt', encoding='utf-8') as f:
+    with open(constants.SIMPLE_USER_POSTS_FILE, 'wt', encoding='utf-8') as f:
         json.dump(
             [{'date': post.selected_date, 'title': post.title, 'link': post.link} for post in posts],
             f,
@@ -315,6 +329,41 @@ def save_posts(posts: List[BriefPost]):
         )
 
         f.write('\n')
+
+        print(f"Saved {len(posts)} user posts to {constants.SIMPLE_USER_POSTS_FILE}")
+
+def save_checkpoint(last_id, date_count, total_user_posts):
+    """Saves the current crawl state to a checkpoint file."""
+    checkpoint_data = {
+        'last_id': last_id,
+        'date_count': date_count,
+        'total_user_posts': [post.to_dict() for post in total_user_posts]
+    }
+
+    try:
+        with open(constants.CHECKPOINT_FILE, 'wt', encoding='utf-8') as f:
+            json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
+        print(f"Checkpoint saved to {constants.CHECKPOINT_FILE}")
+    except IOError as e:
+        print(f"Error saving checkpoint to {constants.CHECKPOINT_FILE}: {e}")
+
+def load_checkpoint():
+    """Loads the crawl state from a checkpoint file."""
+    if not os.path.exists(constants.CHECKPOINT_FILE):
+        print(f"No checkpoint file found at {constants.CHECKPOINT_FILE}. Starting fresh.")
+        return None, 0, [] # Return initial values if no checkpoint
+
+    with open(constants.CHECKPOINT_FILE, 'rt', encoding='utf-8') as f:
+        checkpoint_json = json.load(f)
+
+    last_id = checkpoint_json.get('last_id', None)
+    date_count = checkpoint_json.get('date_count', 0)
+    posts_data = checkpoint_json.get('total_user_posts', [])
+    total_user_posts = [BriefPost.from_dict(post_data) for post_data in posts_data]
+
+    print("Checkpoint loaded...")
+    print(f"Loaded state: last_id={last_id}, date_count={date_count}, total_user_posts_count={len(total_user_posts)}")
+    return last_id, date_count, total_user_posts
 
 def crawl_posts(total_date_num: int):
     """Requests, parses, and saves Jike posts until a specified number of dates are retrieved.
@@ -326,11 +375,9 @@ def crawl_posts(total_date_num: int):
     Args:
         max_date_num (int): The maximum number of dates to retrieve posts for.
     """
-    last_id = None
-    date_count = 0
-    total_user_posts = []
+    last_id, date_count, total_user_posts = load_checkpoint()
 
-    while True:
+    while date_count < total_date_num:
         rest_date_num = total_date_num - date_count
         json_data = fetch_jike_data(rest_date_num, last_id)
 
@@ -339,23 +386,25 @@ def crawl_posts(total_date_num: int):
             break
 
         selected_user_post_groups, _, last_id = extract_data_v1(json_data)
+        date_count += len(selected_user_post_groups)
+        print(f'Date Count: {date_count}')
+        print(f'Last ID: {last_id}')
+        display_posts_groups(selected_user_post_groups)
 
         for posts in selected_user_post_groups:
             total_user_posts.extend(posts)
         save_posts(total_user_posts)
-
-        print(f'Last ID: {last_id}')
-        display_posts_groups(selected_user_post_groups)
-
-        date_count += len(selected_user_post_groups)
-        print(f'Date Count: {date_count}')
-
-        if date_count >= total_date_num:
-            break
+        save_checkpoint(last_id, date_count, total_user_posts)
 
         print('Start to sleep...')
         time.sleep(2)
         print('End sleep...')
+
+    print("Crawl completed successfully. Removing checkpoint file.")
+    try:
+        os.remove(constants.CHECKPOINT_FILE)
+    except OSError as e:
+        print(f"Error removing checkpoint file {constants.CHECKPOINT_FILE}: {e}")
 
 
 if __name__ == '__main__':

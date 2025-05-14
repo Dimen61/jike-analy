@@ -5,13 +5,15 @@ JIKE_URL = 'https://m.okjike.com'
 
 GRAPHQL_PAYLOAD_JSON_FILE = '../data/graphql_payload.json'
 
-RAW_RESPONSE_JSON_FILE_FROM_JIKE = '../data/raw_jike_response.json'
+RAW_RESPONSE_FILE_FROM_JIKE = '../data/raw_jike_response.json'
 
-USER_POSTS_JSON_FILE = '../data/user_post_groups.json'
+CHECKPOINT_FILE = '../data/checkpoint.json'
 
-ANALYSED_POSTS_JSON_FILE = '../data/selection_posts.json'
+SIMPLE_USER_POSTS_FILE = '../data/simple_user_posts.json'
 
-BACKUP_ANALYSED_POSTS_JSON_FILE = '../data/backup_posts.json'
+ANALYSED_POSTS_FILE = '../data/analyzed_posts.json'
+
+BACKUP_ANALYSED_POSTS_FILE = '../data/backup_analyzed_posts.json'
 
 MODEL_RETRY_MAX_NUM = 3
 
