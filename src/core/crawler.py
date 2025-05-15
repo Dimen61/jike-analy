@@ -24,57 +24,14 @@ hardcoded authentication tokens) and save them for later analysis.
 import json
 import os
 import time
-from enum import Enum
 from typing import List
 
 import requests
 from requests.exceptions import RequestException
 
 import constants
+from core.data_models import BriefPost
 
-
-class BriefPost:
-    """Represents a brief post with title, link, and date."""
-
-    class PostType(Enum):
-        """Enum for post types: NEWS or USER_POST."""
-        NEWS = "news"
-        USER_POST = "user_post"
-
-    def __init__(self, title, link, selected_date):
-        """
-        Initializes a BriefPost object.
-
-        Args:
-            title (str): The title of the post.
-            link (str): The URL link of the post.
-            selected_date (str): The date associated with the post.
-        """
-        self.title = title
-        self.link = link
-        self.selected_date = selected_date
-        self.type = None
-
-        # Sample case:
-        # https://m.okjike.com/originalPosts/67bac4b2205950ba34848365
-        # Determine post type based on the link.
-        if 'm.okjike.com' in self.link:
-            self.type = self.PostType.USER_POST
-        else:
-            self.type = self.PostType.NEWS
-
-    def to_dict(self):
-        """Converts the BriefPost object to a dictionary."""
-        return {
-            'title': self.title,
-            'link': self.link,
-            'selected_date': self.selected_date
-        }
-
-    @classmethod
-    def from_dict(cls, data):
-        """Creates a BriefPost object from a dictionary."""
-        return cls(data['title'], data['link'], data['selected_date'])
 
 def load_graphql_query(last_id=None):
     """Loads the GraphQL query from a JSON file and updates it with the last ID if provided.
@@ -141,10 +98,7 @@ def construct_header_v1():
         "Sec-Fetch-Site": "same-site",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
 
-        # "X-Jike-Access-Token": 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoidjJjdTBFekNxbUxrd0hCSCtJN3FPVGoycUtSdkx3QUlyaDI4NE9aUlNRWGo0amdmZDZzNkZkY240aG1nXC9XbzNaN1VqWEVqMnBQMXQ5V0JqTlN6N2Z4VFplSTNZbGZPOU9QVWszeGpObGdtcnpMS1hZSjYzOXFheTBSNDF4VktDZTh0dUlMRXRvdVdmMjZOZEhyeFNDM0k0ZUR1K05raHdtc2ExK1lmTFRQMkt2WTRHU2FQWHBKS1wvYW1kaFo4eVJmYlJKVlhZVUIzdDJ1cVwvMzVYM05XNU5BRXpnMVwveVdyTDBJYTJPeGVTaFlTemtLY2tadlJSUzVtMDVGUlJ6alFGR0dzR09ZRDRMS1JlYUVQS0MzZGlVRDZMTDZBZnZiWUhjMGlxdVJPbjRMNzBIZjc3b0t1Q1JrMHFacmljTnBHNFJrVTRiTyt5cndvSFM0WlIyYlwvXC80S3F0YnZXTVRMREVWOVQxenVOWENFPSIsInYiOjMsIml2IjoiRVZuOUVEaDBZU2FBekJSVEdHUGJOUT09IiwiaWF0IjoxNzQ3MDM3MjQ1LjUzNH0.7bhTE1cQa4jBLo_MnpvveS1WF7O_yRzVAfTj2T2TloU'
-
-        "X-Jike-Access-Token":
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoiQlQzVXM5N3FxV1ZoYWNiQTZtdFE5YWxcL2wydzJMa25wWmpEYlhrZ2xuUzUrS0dzdmZHdWZzOVlCWTRYYk5tbGRnZzIwXC9qZXNQM3JxRm0ra1NFUTB4OTdaUXlFMkc4bmUyNGt6dkx2dXd6MFBJSVVaSEYrZXF2SVwvT1luSVVOS1RVYUpuSzIyQnRlbEJWM2dNcG0rQVk1dm9nd2dHYzFoUm9oTjFpVUwrMjRvSjBiQ01iT1VxaUl2QnQ2eXo2K1UxOStoK3JwelpzNjdZM2IxVXF4MWZ2eTgwdW5CZHdmeFdxcDFETm9uaExwdHFFVkhSYkJkODNYdWpDdzRONk5WdXdMSmNcL1dpN3ZuQnUzSlVXcncwVnAxZUgwUldGRzRLdENXcU1yanhSNHd0YW04TDV3RlNHa1lFb1wvcmNmQllDRG9BbnBjcVwvXC9lRjU1SjZoXC9TZERleDVhZTV6eUNRMzBcL1ppbzVFOTNZbDc0PSIsInYiOjMsIml2IjoiZEcwajBBVnJST0lRRkVzRUtQZUx2UT09IiwiaWF0IjoxNzQ3MjA4MjIwLjUxfQ.D1sBYd55VFuNV7aPEx8_8veZrH8NrW-9PVFzzg1DRY8'
+        "X-Jike-Access-Token": constants.JIKE_ACCESS_TOKEN
     }
 
 def construct_payload_v0():
