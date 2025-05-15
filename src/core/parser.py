@@ -225,81 +225,89 @@ class JikeParser:
         return SentimentType.NONE # Default
 
 
-def dump_posts_to_json(posts: List[Post], json_file: str):
-    """Dumps a list of Post objects to a JSON file."""
-    posts_data = [post.to_dict() for post in posts]
-    with open(json_file, 'w', encoding='utf-8') as f:
-        json.dump(posts_data, f, ensure_ascii=False, indent=4)
+class PostDataIO:
+    """
+    Handles reading and writing post data to/from JSON files.
+    Provides static methods to load raw post dictionaries and load/save parsed Post objects.
+    """
+    @staticmethod
+    def dump_posts_to_json(posts: List[Post], json_file: str):
+        """Dumps a list of Post objects to a JSON file."""
+        posts_data = [post.to_dict() for post in posts]
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(posts_data, f, ensure_ascii=False, indent=4)
 
-def load_posts_from_json(json_file: str) -> List[Post]:
-    """Loads a list of Post objects from a JSON file."""
-    posts = []
-    try:
-        with open(json_file, 'r', encoding='utf-8') as f:
-            posts_data = json.load(f)
-    except FileNotFoundError:
-        print(f"Warning: JSON file not found at {json_file}. Starting with an empty list of posts.")
-        return []
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from {json_file}: {e}")
-        return []
-
-    for data in posts_data:
+    @staticmethod
+    def load_posts_from_json(json_file: str) -> List[Post]:
+        """Loads a list of Post objects from a JSON file."""
+        posts = []
         try:
-            author_data = data.get('author')
-            # Assuming Author dataclass can be initialized directly from its dictionary representation
-            author_instance = Author(**author_data) if author_data else None
+            with open(json_file, 'r', encoding='utf-8') as f:
+                posts_data = json.load(f)
+        except FileNotFoundError:
+            print(f"Warning: JSON file not found at {json_file}. Starting with an empty list of posts.")
+            return []
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from {json_file}: {e}")
+            return []
 
-            # Convert enum names (strings) back to enum members, handle potential errors
-            content_length_type = ContentLengthType.NONE
-            if 'content_length_type' in data and data['content_length_type'] in ContentLengthType.__members__:
-                 content_length_type = ContentLengthType[data['content_length_type']]
+        for data in posts_data:
+            try:
+                author_data = data.get('author')
+                # Assuming Author dataclass can be initialized directly from its dictionary representation
+                author_instance = Author(**author_data) if author_data else None
 
-            post_type = PostType.NONE
-            if 'post_type' in data and data['post_type'] in PostType.__members__:
-                 post_type = PostType[data['post_type']]
+                # Convert enum names (strings) back to enum members, handle potential errors
+                content_length_type = ContentLengthType.NONE
+                if 'content_length_type' in data and data['content_length_type'] in ContentLengthType.__members__:
+                    content_length_type = ContentLengthType[data['content_length_type']]
 
-            sentiment_type = SentimentType.NONE
-            if 'sentiment_type' in data and data['sentiment_type'] in SentimentType.__members__:
-                 sentiment_type = SentimentType[data['sentiment_type']]
+                post_type = PostType.NONE
+                if 'post_type' in data and data['post_type'] in PostType.__members__:
+                    post_type = PostType[data['post_type']]
 
-            post_instance = Post(
-                title=data.get('title', ''),
-                link=data.get('link', ''),
-                selected_date=data.get('selected_date', ''),
-                content=data.get('content'),
-                content_length_type=content_length_type,
-                tags=data.get('tags', []),
-                topic=data.get('topic'),
-                author=author_instance,
-                like_count=data.get('like_count'),
-                post_type=post_type,
-                sentiment_type=sentiment_type,
-                is_creative=data.get('is_creative'),
-                is_hotspot=data.get('is_hotspot')
-            )
-            posts.append(post_instance)
+                sentiment_type = SentimentType.NONE
+                if 'sentiment_type' in data and data['sentiment_type'] in SentimentType.__members__:
+                    sentiment_type = SentimentType[data['sentiment_type']]
+
+                post_instance = Post(
+                    title=data.get('title', ''),
+                    link=data.get('link', ''),
+                    selected_date=data.get('selected_date', ''),
+                    content=data.get('content'),
+                    content_length_type=content_length_type,
+                    tags=data.get('tags', []),
+                    topic=data.get('topic'),
+                    author=author_instance,
+                    like_count=data.get('like_count'),
+                    post_type=post_type,
+                    sentiment_type=sentiment_type,
+                    is_creative=data.get('is_creative'),
+                    is_hotspot=data.get('is_hotspot')
+                )
+                posts.append(post_instance)
+            except Exception as e:
+                print(f"Error loading post data {data.get('link', 'N/A')}: {e}")
+                traceback.print_exc() # Print traceback for detailed error info
+                continue # Skip this post and continue with the next
+
+        return posts
+
+    @staticmethod
+    def load_raw_posts(json_file_path: str) -> List[dict]:
+        """Loads raw post dictionaries from a JSON file."""
+        try:
+            with open(json_file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print(f"Error: The file {json_file_path} was not found.")
+            return []
+        except json.JSONDecodeError:
+            print(f"Error: Could not decode JSON from {json_file_path}.")
+            return []
         except Exception as e:
-            print(f"Error loading post data {data.get('link', 'N/A')}: {e}")
-            traceback.print_exc() # Print traceback for detailed error info
-            continue # Skip this post and continue with the next
-
-    return posts
-
-def load_json_posts(json_file_path: str) -> List[dict]:
-    """Loads raw post dictionaries from a JSON file."""
-    try:
-        with open(json_file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Error: The file {json_file_path} was not found.")
-        return []
-    except json.JSONDecodeError:
-        print(f"Error: Could not decode JSON from {json_file_path}.")
-        return []
-    except Exception as e:
-        print(f"An unexpected error occurred while loading posts from {json_file_path}: {e}")
-        return []
+            print(f"An unexpected error occurred while loading posts from {json_file_path}: {e}")
+            return []
 
 
 def main():
@@ -309,14 +317,14 @@ def main():
     # Load previously analyzed posts if the file exists
     posts: List[Post] = []
     if os.path.exists(constants.ANALYSED_POSTS_FILE):
-        posts = load_posts_from_json(constants.ANALYSED_POSTS_FILE)
+        posts = PostDataIO.load_posts_from_json(constants.ANALYSED_POSTS_FILE)
         print(f"Loaded {len(posts)} previously analyzed posts.")
 
     # Create a set of links for quick lookup of existing posts
     existing_post_links = {post.link for post in posts}
 
     # Load raw post data from the source file
-    raw_posts_data = load_json_posts(constants.SIMPLE_USER_POSTS_FILE)
+    raw_posts_data = PostDataIO.load_raw_posts(constants.SIMPLE_USER_POSTS_FILE)
     print(f"Loaded {len(raw_posts_data)} raw posts to process.")
 
     new_posts_count = 0
@@ -367,7 +375,7 @@ def main():
     # Save the updated list of posts to the analyzed file
     if new_posts_count > 0: # Only save if new posts were added
         try:
-            dump_posts_to_json(posts, constants.ANALYSED_POSTS_FILE)
+            PostDataIO.dump_posts_to_json(posts, constants.ANALYSED_POSTS_FILE)
             print(f"Saved updated list of posts to {constants.ANALYSED_POSTS_FILE}")
         except Exception as e:
             print(f"Error saving posts to JSON: {e}")
