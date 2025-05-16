@@ -240,7 +240,8 @@ class AIProxy:
 
         is_hotspot = None
         try:
-            is_hotspot = bool(str(response.text).strip())
+            response_text = str(response.text).strip().lower()
+            is_hotspot = (response_text == 'true')
         except Exception as e:
             print(f"Error parsing is_hotspot: {e}")
             traceback.print_exc()
@@ -258,7 +259,8 @@ class AIProxy:
 
         is_creative = None
         try:
-            is_creative = bool(str(response.text).strip())
+            response_text = str(response.text).strip().lower()
+            is_creative = (response_text == 'true')
         except Exception as e:
             print(f"Error parsing is_creative: {e}")
             traceback.print_exc()
