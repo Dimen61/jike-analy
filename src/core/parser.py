@@ -1,3 +1,15 @@
+"""
+This script provides tools for parsing Jike web pages to extract and analyze post and author data.
+
+It includes:
+- `JikeParser`: Handles fetching web pages and parsing specific elements like
+  post content, author information, likes, and topics.
+- `PostDataIO`: Manages loading and saving parsed post data to JSON files.
+- AIProxy integration: Uses an external AIProxy to analyze post content
+  for tags, post type, sentiment, hot topic status, and creativity.
+- A `main` function to orchestrate the process, loading raw post data,
+  parsing and analyzing new posts, and saving the enriched data.
+"""
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
