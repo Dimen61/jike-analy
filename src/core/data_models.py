@@ -2,7 +2,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import List, Optional
 
-from core.enum_types import ContentLengthType, PostType, SentimentType
+from core.enums import ContentLengthType, PostType, SentimentType
 
 
 class BriefPost:

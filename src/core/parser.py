@@ -12,7 +12,7 @@ import traceback
 # Assuming these are defined elsewhere
 import constants
 from core.aiproxy import AIProxy # Assuming AIProxy is in ai_proxy.py
-from core.enum_types import ContentLengthType, PostType, SentimentType
+from core.enums import ContentLengthType, PostType, SentimentType
 from core.data_models import Author, Post
 
 class JikeParser:
