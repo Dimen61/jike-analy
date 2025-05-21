@@ -64,6 +64,7 @@
   - 备份数据
 
 ## 代码运行
+下载项目和配置项目环境
 ```shell
 # Step 1: download the project
 git clone git@github.com:Dimen61/jike-analy.git
@@ -72,14 +73,23 @@ cd jike-analy
 
 # Step 2: create your local virtual python environment
 python -m venv .venv
+
 # activate the virtual environment
 source .venv/bin/activate
 
 # install related python package
 pip freeze > requirements.txt
+```
 
-# Step 3: run scripts which you need
+运行脚本
+```shell
 cd src
-python3 -m core.crawler # example
-python3 ./scripts/analyzer.py # example
+# Step 1: crawl jike user posts. You need to configure your JIKE_ACCESS_TOKEN in constants.py
+python3 -m core.crawler
+
+# Step 2: parse the downloaded posts and generate different dimension measurement values
+python3 -m core.parser
+
+# Step 3: analyze the different measurements of posts (comment unnecessary code)
+python3 -m scripts.analyzer
 ```
