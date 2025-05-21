@@ -10,22 +10,25 @@ It includes:
 - A `main` function to orchestrate the process, loading raw post data,
   parsing and analyzing new posts, and saving the enriched data.
 """
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-from typing import List, Optional
-from dataclasses import dataclass, field, asdict
+
 import json
 import os
-import time
 import random
+import sys
+import time
 import traceback
+from typing import List, Optional
+from urllib.parse import urljoin
+
+import requests
+from bs4 import BeautifulSoup
 
 # Assuming these are defined elsewhere
 import constants
-from core.aiproxy import AIProxy # Assuming AIProxy is in ai_proxy.py
-from core.enums import ContentLengthType, PostType, SentimentType
+from core.aiproxy import AIProxy  # Assuming AIProxy is in ai_proxy.py
 from core.data_models import Author, Post
+from core.enums import ContentLengthType, PostType, SentimentType
+
 
 class JikeParser:
     """Parses Jike web pages to extract Author and Post data."""
@@ -322,7 +325,7 @@ class PostDataIO:
             return []
 
 
-def main():
+def main(to_parse_post_num):
     """Main function to process and analyze Jike posts."""
     parser = JikeParser()
 
@@ -374,8 +377,7 @@ def main():
             # break # Uncomment to stop on first error
             continue # Continue to the next post on error
 
-        # For testing
-        if new_posts_count == 2:
+        if to_parse_post_num and new_posts_count >= to_parse_post_num:
             break
 
         # Add a delay to avoid hitting the server too hard
@@ -389,10 +391,21 @@ def main():
         try:
             PostDataIO.dump_posts_to_json(posts, constants.ANALYSED_POSTS_FILE)
             print(f"Saved updated list of posts to {constants.ANALYSED_POSTS_FILE}")
+            print(f"Finished at: {time.ctime()}")
         except Exception as e:
             print(f"Error saving posts to JSON: {e}")
             traceback.print_exc()
 
 
 if __name__ == "__main__":
-    main()
+    # Get command line arguments
+    args = sys.argv[1:] # Exclude the script name itself
+
+    to_parse_post_num = None
+    if args and len(args) == 1:
+        to_parse_post_num = int(args[0])
+        print(f"Command line arguments received(to parse post num): {to_parse_post_num}")
+    else:
+        print("No legal command line argument provided. Processing posts without an explicit limit.")
+
+    main(to_parse_post_num)
