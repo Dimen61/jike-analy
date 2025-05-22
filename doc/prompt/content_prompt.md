@@ -49,9 +49,101 @@ LIFESTYLE          193.504456   151.0  108556    561
 OPINION            149.859290   116.0  109697    732
 PRODUCT_MARKETING  140.048485    98.0   23108    165
 
-## Creative expression & hotpot
+## Hotpot
+### Hotpot distribution
+Hotspot distribution (True/False):
+  is_hotspot
+True     0.708861
+False    0.291139
 
-all selected posts satisfies creative expression & hotpot
+### Likes Comparison: Hotspot vs Non-Hotspot
+Like counts for Hotspot (True) vs Non-Hotspot (False) posts:
+                  mean  median    sum  count
+is_hotspot
+False       158.832298   125.0  25572    161
+True        167.313776   123.0  65587    392
+
+### Post Type Distribution for Hotspot vs Non-Hotspot posts
+Counts:
+ post_type   ENTERTAINMENT  INTERACTIVE  KNOWLEDGE  LIFESTYLE  NONE  OPINION  PRODUCT_MARKETING
+is_hotspot
+False                   5            0         23         93     0       25                 15
+True                    3            1         85         70     1      195                 37
+
+Proportions:
+ post_type   ENTERTAINMENT  INTERACTIVE  KNOWLEDGE  LIFESTYLE      NONE   OPINION  PRODUCT_MARKETING
+is_hotspot
+False            0.031056     0.000000   0.142857   0.577640  0.000000  0.155280           0.093168
+True             0.007653     0.002551   0.216837   0.178571  0.002551  0.497449           0.094388
+
+### Sentiment Distribution for Hotspot vs Non-Hotspot posts
+
+Counts:
+ sentiment_type  NEGATIVE  NEUTRAL  POSITIVE
+is_hotspot
+False                  8       25       128
+True                  76       57       259
+
+Proportions:
+ sentiment_type  NEGATIVE   NEUTRAL  POSITIVE
+is_hotspot
+False           0.049689  0.155280  0.795031
+True            0.193878  0.145408  0.660714
+
+### Author Follower Distribution for Hotspot vs Non-Hotspot posts
+
+Statistics of author follower counts by hotspot status:
+            count         mean           std   min     25%     50%      75%      max
+is_hotspot
+False       161.0  7416.291925  10951.604643   7.0  1000.0  3000.0   9000.0  76000.0
+True        392.0  8853.737245  11792.298685  28.0  1000.0  5000.0  11000.0  64000.0
+
+## Creative
+### Creative Distribution
+Creative distribution (True/False):
+ is_creative
+False    0.614828
+True     0.385172
+
+### Likes Comparison: Creative vs Non-Creative
+Like counts for Creative (True) vs Non-Creative (False) posts:
+                   mean  median    sum  count
+is_creative
+False        164.361765   122.0  55883    340
+True         165.615023   125.0  35276    213
+
+### Post Type Distribution for Creative vs Non-Creative posts
+Counts:
+ post_type    ENTERTAINMENT  INTERACTIVE  KNOWLEDGE  LIFESTYLE  NONE  OPINION  PRODUCT_MARKETING
+is_creative
+False                    2            1         66        111     1      134                 25
+True                     6            0         42         52     0       86                 27
+
+Proportions:
+ post_type    ENTERTAINMENT  INTERACTIVE  KNOWLEDGE  LIFESTYLE      NONE   OPINION  PRODUCT_MARKETING
+is_creative
+False             0.005882     0.002941   0.194118   0.326471  0.002941  0.394118           0.073529
+True              0.028169     0.000000   0.197183   0.244131  0.000000  0.403756           0.126761
+
+### Sentiment Distribution for Creative vs Non-Creative posts
+Counts:
+ sentiment_type  NEGATIVE  NEUTRAL  POSITIVE
+is_creative
+False                 65       58       217
+True                  19       24       170
+
+Proportions:
+ sentiment_type  NEGATIVE   NEUTRAL  POSITIVE
+is_creative
+False           0.191176  0.170588  0.638235
+True            0.089202  0.112676  0.798122
+
+### Author Follower Distribution for Creative vs Non-Creative posts
+Statistics of author follower counts by creative status:
+             count         mean           std   min     25%     50%      75%      max
+is_creative
+False        340.0  8349.702941  12421.678556   7.0  1000.0  4000.0   9000.0  76000.0
+True         213.0  8571.779343  10066.786810  28.0  2000.0  5000.0  11000.0  60000.0
 
 ## Sentiment
 
