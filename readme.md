@@ -38,9 +38,9 @@
 
 ## 研究报告
 [总报告]()
-[圈子报告]()
-[作者影响力报告]()
-[内容报告]()
+[圈子报告](./doc/analysis_report/topic.md)
+[作者影响力报告](./doc/analysis_report/author.md)
+[内容报告](./doc/analysis_report/content.md)
 
 ## Repo 结构介绍
 - `src`: 包含所有的代码
