@@ -25,7 +25,7 @@ from collections import Counter
 
 
 import constants
-from core.parser import load_posts_from_json
+from core.parser import PostDataIO
 
 
 def reduce_duplicated_post(posts):
@@ -498,15 +498,15 @@ def analyze_author(df):
     labels = ['<100', '100-500', '500-1K', '1K-5K', '5K-10K', '10K+']
 
     # Create author follower groups
-    df_filtered = df.dropna(subset=['author_followers', 'sentiment_type'])
-    df_filtered['follower_group'] = pd.cut(df_filtered['author_followers'],
+    df = df.dropna(subset=['author_followers', 'sentiment_type'])
+    df['follower_group'] = pd.cut(df['author_followers'],
                                          bins=bins,
                                          labels=labels)
 
     # Create a crosstab of follower groups and sentiment types
     sentiment_by_follower = pd.crosstab(
-        df_filtered['follower_group'],
-        df_filtered['sentiment_type'],
+        df['follower_group'],
+        df['sentiment_type'],
         normalize='index'
     )
 
@@ -535,15 +535,15 @@ def analyze_author(df):
     labels = ['<100', '100-500', '500-1K', '1K-5K', '5K-10K', '10K+']
 
     # Create author follower groups
-    df_filtered = df.dropna(subset=['author_followers', 'post_type'])
-    df_filtered['follower_group'] = pd.cut(df_filtered['author_followers'],
+    df = df.dropna(subset=['author_followers', 'post_type'])
+    df['follower_group'] = pd.cut(df['author_followers'],
                                          bins=bins,
                                          labels=labels)
 
     # Create a crosstab of follower groups and post types
     post_type_by_follower = pd.crosstab(
-        df_filtered['follower_group'],
-        df_filtered['post_type'],
+        df['follower_group'],
+        df['post_type'],
         normalize='index'
     )
 
@@ -572,8 +572,8 @@ def analyze_author(df):
     labels = ['<100', '100-500', '500-1K', '1K-5K', '5K-10K', '10K+']
 
     # Create author follower groups
-    df_filtered = df.dropna(subset=['author_followers', 'content_length_type'])
-    df_filtered['follower_group'] = pd.cut(df_filtered['author_followers'],
+    df = df.dropna(subset=['author_followers', 'content_length_type'])
+    df['follower_group'] = pd.cut(df['author_followers'],
                                          bins=bins,
                                          labels=labels)
 
@@ -581,16 +581,16 @@ def analyze_author(df):
     content_length_order = ['SHORT', 'MEDIUM', 'LONG', 'LONGER']
 
     # Ensure content_length_type is categorical with the correct order
-    df_filtered['content_length_type'] = pd.Categorical(
-        df_filtered['content_length_type'],
+    df['content_length_type'] = pd.Categorical(
+        df['content_length_type'],
         categories=content_length_order,
         ordered=True
     )
 
     # Create a crosstab of follower groups and content length types
     content_length_by_follower = pd.crosstab(
-        df_filtered['follower_group'],
-        df_filtered['content_length_type'],
+        df['follower_group'],
+        df['content_length_type'],
         normalize='index'
     )
 
@@ -655,153 +655,471 @@ def analyze_content(df):
         print("Error: 'tags' column not found in the DataFrame.")
 
 
-    # ################################################################
-    # # b. Distribution of post types:
-    # ################################################################
-    # post_type_dist = df['post_type'].value_counts(normalize=True)
-    # print("\nPost type distribution:\n", post_type_dist)
+    ################################################################
+    # b. Distribution of post types:
+    ################################################################
+    post_type_dist = df['post_type'].value_counts(normalize=True)
+    print("\nPost type distribution:\n", post_type_dist)
 
-    # post_type_dist.plot(kind='pie', autopct='%1.1f%%',
-    #                         colors=sns.color_palette("pastel"),
-    #                         explode=[0.05] * len(post_type_dist),
-    #                         shadow=False)
+    post_type_dist.plot(kind='pie', autopct='%1.1f%%',
+                            colors=sns.color_palette("pastel"),
+                            explode=[0.05] * len(post_type_dist),
+                            shadow=False)
 
-    # plt.title('Post Type Distribution')
-    # plt.show()
+    plt.title('Post Type Distribution')
+    plt.show()
 
-    # # Count the like count for different post types
-    # post_type_likes = df.groupby('post_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
-    # print("\nLike counts for different post types:")
-    # print(post_type_likes)
+    # Count the like count for different post types
+    post_type_likes = df.groupby('post_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
+    print("\nLike counts for different post types:")
+    print(post_type_likes)
 
-    # # Visualize the average likes by post type
-    # plt.figure(figsize=(10, 6))
-    # post_type_likes['mean'].sort_values(ascending=False).plot(kind='bar', color='skyblue')
-    # plt.title('Average Likes by Post Type')
-    # plt.xlabel('Post Type')
-    # plt.ylabel('Average Like Count')
-    # plt.grid(axis='y', alpha=0.3)
-    # plt.tight_layout()
-    # plt.show()
-
-
-    # ################################################################
-    # # c. Sentiment distribution:
-    # ################################################################
-    # sentiment_dist = df['sentiment_type'].value_counts(normalize=True)
-    # print("\nSentiment distribution:\n", sentiment_dist)
-    # # draw distribution
-    # sentiment_dist.plot(kind='bar', color='skyblue')
-    # plt.title('Sentiment Distribution')
-    # plt.xlabel('Sentiment Type')
-    # plt.ylabel('Percentage')
-    # plt.grid(axis='y', alpha=0.3)
-    # plt.tight_layout()
-    # plt.show()
-
-    # # Count the like count for different sentiment types
-    # sentiment_likes = df.groupby('sentiment_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
-    # print("\nLike counts for different sentiment types:")
-    # print(sentiment_likes)
-
-    # # Visualize the average likes by sentiment type
-    # plt.figure(figsize=(10, 6))
-    # sentiment_likes['mean'].sort_values(ascending=False).plot(kind='bar', color='skyblue')
-    # plt.title('Average Likes by Sentiment Type')
-    # plt.xlabel('Sentiment Type')
-    # plt.ylabel('Average Like Count')
-    # plt.grid(axis='y', alpha=0.3)
-    # plt.tight_layout()
-    # plt.show()
+    # Visualize the average likes by post type
+    plt.figure(figsize=(10, 6))
+    post_type_likes['mean'].sort_values(ascending=False).plot(kind='bar', color='skyblue')
+    plt.title('Average Likes by Post Type')
+    plt.xlabel('Post Type')
+    plt.ylabel('Average Like Count')
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
 
 
-    # ################################################################
-    # # d. Content Length Distribution:
-    # ################################################################
-    # # Get content length distribution
-    # content_length_dist = df['content_length_type'].value_counts(normalize=True)
-    # print("\nContent length distribution:\n", content_length_dist)
+    ################################################################
+    # c. Sentiment distribution:
+    ################################################################
+    sentiment_dist = df['sentiment_type'].value_counts(normalize=True)
+    print("\nSentiment distribution:\n", sentiment_dist)
+    # draw distribution
+    sentiment_dist.plot(kind='bar', color='skyblue')
+    plt.title('Sentiment Distribution')
+    plt.xlabel('Sentiment Type')
+    plt.ylabel('Percentage')
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
 
-    # # Display content length distribution as a pie chart
-    # plt.figure(figsize=(10, 6))
-    # content_length_dist.plot(kind='pie', autopct='%1.1f%%',
-    #                         colors=sns.color_palette("pastel"),
-    #                         explode=[0.05] * len(content_length_dist),
-    #                         shadow=False)
-    # plt.title('Content Length Distribution')
-    # plt.ylabel('')  # Remove the y-label
-    # plt.tight_layout()
-    # plt.show()
+    # Count the like count for different sentiment types
+    sentiment_likes = df.groupby('sentiment_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
+    print("\nLike counts for different sentiment types:")
+    print(sentiment_likes)
 
-    # # Count the like counts for different content length types
-    # content_length_likes = df.groupby('content_length_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
-    # print("\nLike counts for different content length types:")
-    # print(content_length_likes)
-
-    # # Visualize the average likes by content length type
-    # plt.figure(figsize=(10, 6))
-    # # Ensure consistent order
-    # content_length_order = ['SHORT', 'MEDIUM', 'LONG', 'LONGER']
-    # # Filter to include only content length types that exist in our data
-    # valid_types = [t for t in content_length_order if t in content_length_likes.index]
-    # content_length_likes.loc[valid_types, 'mean'].plot(kind='bar', color='skyblue')
-    # plt.title('Average Likes by Content Length Type')
-    # plt.xlabel('Content Length Type')
-    # plt.ylabel('Average Like Count')
-    # plt.grid(axis='y', alpha=0.3)
-    # plt.tight_layout()
-    # plt.show()
-
-    # # Draw content length type distribution for different post types
-    # plt.figure(figsize=(10, 6))
-    # cross_tab_cl_pt = pd.crosstab(df['content_length_type'], df['post_type'])
-    # cross_tab_cl_pt.plot(kind='bar', stacked=True, color=['skyblue', 'orange', 'green'])
-    # print("\nContent Length vs Post type\n", cross_tab_cl_pt)
-    # plt.title('Content Length Type Distribution by Post Type')
-    # plt.xlabel('Content Length Type')
-    # plt.ylabel('Count')
-    # plt.legend(title='Post Type')
-    # plt.tight_layout()
-    # plt.show()
+    # Visualize the average likes by sentiment type
+    plt.figure(figsize=(10, 6))
+    sentiment_likes['mean'].sort_values(ascending=False).plot(kind='bar', color='skyblue')
+    plt.title('Average Likes by Sentiment Type')
+    plt.xlabel('Sentiment Type')
+    plt.ylabel('Average Like Count')
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
 
 
-    # # draw content length type distribution for different post types
-    # plt.figure(figsize=(10, 6))
-    # cross_tab_cl_pt = pd.crosstab(df['content_length_type'], df['post_type'])
-    # cross_tab_cl_pt.plot(kind='bar', stacked=True, color=['black', 'orange', 'green', 'red', 'skyblue', 'grey'])
-    # print("\nContent Length vs Post type\n", cross_tab_cl_pt)
-    # plt.title('Content Length Type Distribution by Post Type')
-    # plt.xlabel('Content Length Type')
-    # plt.ylabel('Count')
-    # plt.legend(title='Post Type')
-    # plt.tight_layout()
-    # plt.show()
+    ################################################################
+    # d. Content Length Distribution:
+    ################################################################
+    # Get content length distribution
+    content_length_dist = df['content_length_type'].value_counts(normalize=True)
+    print("\nContent length distribution:\n", content_length_dist)
+
+    # Display content length distribution as a pie chart
+    plt.figure(figsize=(10, 6))
+    content_length_dist.plot(kind='pie', autopct='%1.1f%%',
+                            colors=sns.color_palette("pastel"),
+                            explode=[0.05] * len(content_length_dist),
+                            shadow=False)
+    plt.title('Content Length Distribution')
+    plt.ylabel('')  # Remove the y-label
+    plt.tight_layout()
+    plt.show()
+
+    # Count the like counts for different content length types
+    content_length_likes = df.groupby('content_length_type')['like_count'].agg(['mean', 'median', 'sum', 'count'])
+    print("\nLike counts for different content length types:")
+    print(content_length_likes)
+
+    # Visualize the average likes by content length type
+    plt.figure(figsize=(10, 6))
+    # Ensure consistent order
+    content_length_order = ['SHORT', 'MEDIUM', 'LONG', 'LONGER']
+    # Filter to include only content length types that exist in our data
+    valid_types = [t for t in content_length_order if t in content_length_likes.index]
+    content_length_likes.loc[valid_types, 'mean'].plot(kind='bar', color='skyblue')
+    plt.title('Average Likes by Content Length Type')
+    plt.xlabel('Content Length Type')
+    plt.ylabel('Average Like Count')
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+    # Draw content length type distribution for different post types
+    plt.figure(figsize=(10, 6))
+    cross_tab_cl_pt = pd.crosstab(df['content_length_type'], df['post_type'])
+    cross_tab_cl_pt.plot(kind='bar', stacked=True, color=['skyblue', 'orange', 'green'])
+    print("\nContent Length vs Post type\n", cross_tab_cl_pt)
+    plt.title('Content Length Type Distribution by Post Type')
+    plt.xlabel('Content Length Type')
+    plt.ylabel('Count')
+    plt.legend(title='Post Type')
+    plt.tight_layout()
+    plt.show()
 
 
-    # # draw content length type distribution for different sentiment types
-    # plt.figure(figsize=(10, 6))
-    # cross_tab_cl_st = pd.crosstab(df['content_length_type'], df['sentiment_type'])
-    # cross_tab_cl_st.plot(kind='bar', stacked=True, color=['skyblue', 'orange', 'green'])
-    # print("\nContent Length vs Sentiment type\n", cross_tab_cl_st)
-    # plt.title('Content Length Type Distribution by Sentiment Type')
-    # plt.xlabel('Content Length Type')
-    # plt.ylabel('Count')
-    # plt.legend(title='Sentiment Type')
-    # plt.tight_layout()
-    # plt.show()
+    # draw content length type distribution for different post types
+    plt.figure(figsize=(10, 6))
+    cross_tab_cl_pt = pd.crosstab(df['content_length_type'], df['post_type'])
+    cross_tab_cl_pt.plot(kind='bar', stacked=True, color=['black', 'orange', 'green', 'red', 'skyblue', 'grey'])
+    print("\nContent Length vs Post type\n", cross_tab_cl_pt)
+    plt.title('Content Length Type Distribution by Post Type')
+    plt.xlabel('Content Length Type')
+    plt.ylabel('Count')
+    plt.legend(title='Post Type')
+    plt.tight_layout()
+    plt.show()
+
+
+    # draw content length type distribution for different sentiment types
+    plt.figure(figsize=(10, 6))
+    cross_tab_cl_st = pd.crosstab(df['content_length_type'], df['sentiment_type'])
+    cross_tab_cl_st.plot(kind='bar', stacked=True, color=['skyblue', 'orange', 'green'])
+    print("\nContent Length vs Sentiment type\n", cross_tab_cl_st)
+    plt.title('Content Length Type Distribution by Sentiment Type')
+    plt.xlabel('Content Length Type')
+    plt.ylabel('Count')
+    plt.legend(title='Sentiment Type')
+    plt.tight_layout()
+    plt.show()
+
+
+    ###############################################################
+    # e. Hotspot related
+    ###############################################################
+    # 1. Draw hotspot distribution
+    print("\n--- Hotspot Distribution ---")
+
+    # Calculate the distribution of is_hotspot
+    hotspot_dist = df['is_hotspot'].value_counts(normalize=True)
+
+    print("\nHotspot distribution (True/False):\n", hotspot_dist)
+
+    # Visualize the distribution using a pie chart
+    plt.figure(figsize=(8, 6))
+    hotspot_dist.plot(kind='pie', autopct='%1.1f%%',
+                      colors=['lightcoral', 'skyblue'], # Colors for True and False
+                      explode=[0.05, 0], # Slightly explode the 'True' slice
+                      shadow=False,
+                      labels=['Hotspot', 'Not Hotspot']
+                     )
+
+    plt.title('Distribution of Hotspot Posts', fontsize=14)
+    plt.ylabel('')  # Remove the y-label
+    plt.tight_layout()
+    plt.show()
+
+    # 2. Analyze like counts for hotspot vs non-hotspot posts
+    print("\n--- Likes Comparison: Hotspot vs Non-Hotspot ---")
+    hotspot_likes = df.groupby('is_hotspot')['like_count'].agg(['mean', 'median', 'sum', 'count'])
+    print("\nLike counts for Hotspot (True) vs Non-Hotspot (False) posts:")
+    print(hotspot_likes)
+
+    # Visualize average likes
+    plt.figure(figsize=(8, 6))
+    hotspot_likes['mean'].plot(kind='bar', color=['skyblue', 'lightcoral'])
+    plt.title('Average Likes for Hotspot vs Non-Hotspot Posts')
+    plt.xlabel('Is Hotspot')
+    plt.ylabel('Average Like Count')
+    plt.xticks(ticks=[0, 1], labels=['False', 'True'], rotation=0)
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+    # 3. Distribution of Post Types for hotspot
+    print("\n--- Post Type Distribution for Hotspot vs Non-Hotspot posts ---")
+    # Use crosstab for clear counts and proportions
+    post_type_dist = pd.crosstab(df['is_hotspot'], df['post_type'])
+    print("\nCounts:\n", post_type_dist.to_string())
+
+    # Calculate proportions within each hotspot group (row-wise normalization)
+    post_type_dist_prop = pd.crosstab(df['is_hotspot'], df['post_type'], normalize='index')
+    print("\nProportions:\n", post_type_dist_prop.to_string())
+
+    # Visualize proportions using a stacked bar chart
+    if not post_type_dist_prop.empty:
+        plt.figure(figsize=(10, 6))
+        post_type_dist_prop.plot(kind='bar', stacked=True, ax=plt.gca())
+        plt.title('Post Type Distribution for Hotspot vs Non-Hotspot Posts')
+        plt.xlabel('Is Hotspot')
+        plt.ylabel('Proportion of Post Types')
+        plt.xticks(rotation=0)
+        plt.legend(title='Post Type', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No data to visualize for post type distribution vs hotspot.")
+
+    # 4. Sentiment Distribution for Hotspot vs Non-Hotspot posts
+    print("\n--- Sentiment Distribution for Hotspot vs Non-Hotspot posts ---")
+    # Use crosstab for clear counts and proportions
+    sentiment_dist = pd.crosstab(df['is_hotspot'], df['sentiment_type'])
+    print("\nCounts:\n", sentiment_dist.to_string())
+
+    # Calculate proportions within each hotspot group (row-wise normalization)
+    sentiment_dist_prop = pd.crosstab(df['is_hotspot'], df['sentiment_type'], normalize='index')
+    print("\nProportions:\n", sentiment_dist_prop.to_string())
+
+    # Visualize proportions using a stacked bar chart
+    if not sentiment_dist_prop.empty:
+        plt.figure(figsize=(10, 6))
+        sentiment_dist_prop.plot(kind='bar', stacked=True, ax=plt.gca())
+        plt.title('Sentiment Distribution for Hotspot vs Non-Hotspot Posts')
+        plt.xlabel('Is Hotspot')
+        plt.ylabel('Proportion of Sentiment Types')
+        plt.xticks(rotation=0)
+        plt.legend(title='Sentiment Type', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+    else:
+         print("No data to visualize for sentiment distribution vs hotspot.")
+
+    # 5. Distribution of Content Length Types for hotspot vs non-hotspot posts
+    print("\n--- Content Length Distribution for Hotspot vs Non-Hotspot posts ---")
+    # Define the desired order for content length types
+    content_length_order = ['SHORT', 'MEDIUM', 'LONG', 'LONGER'] # Adjust if your actual values differ
+
+    # Ensure 'content_length_type' is categorical with the correct order
+    df['content_length_type'] = pd.Categorical(
+        df['content_length_type'],
+        categories=content_length_order,
+        ordered=True
+    )
+
+    # Use crosstab for proportions, normalized by hotspot group (index)
+    content_length_dist_prop = pd.crosstab(
+        df['is_hotspot'],
+        df['content_length_type'],
+        normalize='index',
+        dropna=False # Keep groups even if they only have NaN length types (though ideally handled earlier)
+    )
+
+    # Ensure all expected columns are present, fill missing with 0
+    content_length_dist_prop = content_length_dist_prop.reindex(columns=content_length_order, fill_value=0)
+
+    print("\nProportions:\n", content_length_dist_prop)
+
+    # Visualize proportions using a stacked bar chart
+    if not content_length_dist_prop.empty:
+        plt.figure(figsize=(10, 6))
+        content_length_dist_prop.plot(kind='bar', stacked=True, ax=plt.gca())
+        plt.title('Content Length Distribution for Hotspot vs Non-Hotspot Posts')
+        plt.xlabel('Is Hotspot')
+        plt.ylabel('Proportion of Content Length Types')
+        plt.xticks(rotation=0)
+        plt.legend(title='Content Length', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No data to visualize for content length distribution vs hotspot.")
+
+    # 6. Author follower distribution for hotspot vs non-hotspot
+    print("\n--- Author Follower Distribution for Hotspot vs Non-Hotspot posts ---")
+
+    # Filter out None values in 'author_followers'
+    df_followers_filtered = df.dropna(subset=['author_followers'])
+
+    if df_followers_filtered.empty:
+        print("No data available for author follower analysis vs hotspot.")
+        return
+
+    # Basic statistics by hotspot status
+    print("\nStatistics of author follower counts by hotspot status:")
+    follower_stats_by_hotspot = df_followers_filtered.groupby('is_hotspot')['author_followers'].describe()
+    print(follower_stats_by_hotspot.to_string())
+
+    # Visualize distribution using violin plots
+    plt.figure(figsize=(10, 6))
+    sns.violinplot(x='is_hotspot', y='author_followers', data=df_followers_filtered, inner='quartile')
+    plt.title('Author Follower Distribution for Hotspot vs Non-Hotspot Posts')
+    plt.xlabel('Is Hotspot')
+    plt.ylabel('Number of Followers')
+    # Use log scale for y-axis if distribution is skewed
+    plt.yscale('log')
+    plt.xticks(ticks=[0, 1], labels=['Non-Hotspot', 'Hotspot'])
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+    ###############################################################
+    # f. creative related
+    ###############################################################
+    # 1. Draw creative distribution
+    print("\n--- Creative Distribution ---")
+
+    # Calculate the distribution of is_hotspot
+    creative_dist = df['is_creative'].value_counts(normalize=True)
+
+    print("\nCreative distribution (True/False):\n", creative_dist)
+
+    # Visualize the distribution using a pie chart
+    plt.figure(figsize=(8, 6))
+    creative_dist.plot(kind='pie', autopct='%1.1f%%',
+                      colors=['lightcoral', 'skyblue'], # Colors for True and False
+                      explode=[0.05, 0], # Slightly explode the 'True' slice
+                      shadow=False,
+                      labels=['Not creative', 'Creative']
+                     )
+
+    plt.title('Distribution of Creative Posts', fontsize=14)
+    plt.ylabel('')  # Remove the y-label
+    plt.tight_layout()
+    plt.show()
+
+    # 2. Analyze like counts for creative vs non-creative posts
+    print("\n--- Likes Comparison: Creative vs Non-Creative ---")
+    creative_likes = df.groupby('is_creative')['like_count'].agg(['mean', 'median', 'sum', 'count'])
+    print("\nLike counts for Creative (True) vs Non-Creative (False) posts:")
+    print(creative_likes)
+
+    # Visualize average likes
+    plt.figure(figsize=(8, 6))
+    # Ensure correct order and labels for the bar plot if needed, assuming False comes before True in index
+    creative_likes['mean'].plot(kind='bar', color=['skyblue', 'lightcoral'])
+    plt.title('Average Likes for Creative vs Non-Creative Posts')
+    plt.xlabel('Is Creative')
+    plt.ylabel('Average Like Count')
+    plt.xticks(ticks=[0, 1], labels=['Non-Creative', 'Creative'], rotation=0)
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+    # 3. Distribution of Post Types for creative
+    print("\n--- Post Type Distribution for Creative vs Non-Creative posts ---")
+    # Use crosstab for clear counts and proportions
+    # Ensure the DataFrame has 'is_creative' and 'post_type' columns and filter out NaNs if necessary
+    df_filtered = df.dropna(subset=['is_creative', 'post_type']).copy()
+
+    if df_filtered.empty:
+        print("No data available for post type analysis vs creative status.")
+        return
+
+    post_type_dist_creative = pd.crosstab(df_filtered['is_creative'], df_filtered['post_type'])
+    print("\nCounts:\n", post_type_dist_creative.to_string())
+
+    # Calculate proportions within each creative group (row-wise normalization)
+    post_type_dist_prop_creative = pd.crosstab(df_filtered['is_creative'], df_filtered['post_type'], normalize='index')
+    print("\nProportions:\n", post_type_dist_prop_creative.to_string())
+
+    # Visualize proportions using a stacked bar chart
+    if not post_type_dist_prop_creative.empty:
+        plt.figure(figsize=(10, 6))
+        post_type_dist_prop_creative.plot(kind='bar', stacked=True, ax=plt.gca())
+        plt.title('Post Type Distribution for Creative vs Non-Creative Posts')
+        plt.xlabel('Is Creative')
+        plt.ylabel('Proportion of Post Types')
+        plt.xticks(ticks=[0, 1], labels=['Non-Creative', 'Creative'], rotation=0)
+        plt.legend(title='Post Type', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No data to visualize for post type distribution vs creative.")
+
+    # 4. Sentiment Distribution for Creative vs Non-Creative posts
+    print("\n--- Sentiment Distribution for Creative vs Non-Creative posts ---")
+    # Use crosstab for clear counts and proportions
+    # Ensure the DataFrame has 'is_creative' and 'sentiment_type' columns and filter out NaNs if necessary
+    df_filtered = df.dropna(subset=['is_creative', 'sentiment_type']).copy()
+
+    if df_filtered.empty:
+        print("No data available for sentiment analysis vs creative status.")
+        # return # Or maybe just continue with a message, depending on desired script flow
+    else:
+        sentiment_dist_creative = pd.crosstab(df_filtered['is_creative'], df_filtered['sentiment_type'])
+        print("\nCounts:\n", sentiment_dist_creative.to_string())
+
+        # Calculate proportions within each creative group (row-wise normalization)
+        sentiment_dist_prop_creative = pd.crosstab(df_filtered['is_creative'], df_filtered['sentiment_type'], normalize='index')
+        print("\nProportions:\n", sentiment_dist_prop_creative.to_string())
+
+        # Define the desired order for sentiment types (adjust if your actual values differ)
+        # Assuming SentimentType enum has .name attribute giving strings like 'POSITIVE' etc.
+        # Let's dynamically get possible values if possible, or define explicitly
+        try:
+             # Attempt to get names from the enum if it's accessible and consistent
+             # This requires knowing the Enum definition (e.g., constants.SentimentType)
+             # If constants.SentimentType is not directly available here, define manually:
+             sentiment_order = ['NEGATIVE', 'NEUTRAL', 'POSITIVE'] # Adjust if needed based on your SentimentType enum
+            # from sentiment_analysis import SentimentType # Or wherever it's defined
+            # sentiment_order = [s.name for s in SentimentType]
+        except NameError:
+             # Fallback to a predefined list if the enum isn't easily accessible
+             sentiment_order = ['NEGATIVE', 'NEUTRAL', 'POSITIVE'] # Adjust if needed
+
+        # Ensure all expected sentiment columns are present, fill missing with 0
+        # Reindex columns to ensure consistent order for plotting
+        sentiment_dist_prop_creative = sentiment_dist_prop_creative.reindex(columns=sentiment_order, fill_value=0)
+
+
+        # Visualize proportions using a stacked bar chart
+        if not sentiment_dist_prop_creative.empty:
+            plt.figure(figsize=(10, 6))
+            sentiment_dist_prop_creative.plot(kind='bar', stacked=True, ax=plt.gca())
+            plt.title('Sentiment Distribution for Creative vs Non-Creative Posts')
+            plt.xlabel('Is Creative')
+            plt.ylabel('Proportion of Sentiment Types')
+            plt.xticks(ticks=[0, 1], labels=['Non-Creative', 'Creative'], rotation=0)
+            plt.legend(title='Sentiment Type', bbox_to_anchor=(1.05, 1), loc='upper left')
+            plt.grid(axis='y', alpha=0.3)
+            plt.tight_layout()
+            plt.show()
+        else:
+             print("No data to visualize for sentiment distribution vs creative.")
+
+    # 5. Author follower distribution for creative vs non-creative
+    print("\n--- Author Follower Distribution for Creative vs Non-Creative posts ---")
+
+    # Filter out None values in 'author_followers' and 'is_creative'
+    df_followers_filtered = df.dropna(subset=['author_followers', 'is_creative'])
+
+    if df_followers_filtered.empty:
+        print("No data available for author follower analysis vs creative status.")
+        # return # Or maybe just continue with a message
+    else:
+        # Basic statistics by creative status
+        print("\nStatistics of author follower counts by creative status:")
+        follower_stats_by_creative = df_followers_filtered.groupby('is_creative')['author_followers'].describe()
+        print(follower_stats_by_creative.to_string())
+
+        # Visualize distribution using violin plots
+        plt.figure(figsize=(10, 6))
+        sns.violinplot(x='is_creative', y='author_followers', data=df_followers_filtered, inner='quartile')
+        plt.title('Author Follower Distribution for Creative vs Non-Creative Posts')
+        plt.xlabel('Is Creative')
+        plt.ylabel('Number of Followers')
+        # Use log scale for y-axis if distribution is skewed
+        plt.yscale('log')
+        plt.xticks(ticks=[0, 1], labels=['Non-Creative', 'Creative'])
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
 
 def main():
-    posts = load_posts_from_json(constants.ANALYSED_POSTS_JSON_FILE)
+    posts = PostDataIO.load_posts_from_json(constants.ANALYSED_POSTS_FILE)
     posts = reduce_duplicated_post(posts)
 
     print(f'length of posts: {len(posts)}')
 
     df = construct_dataframe(posts)
 
+    # Uncomment the code which you would use
     # analyze_topic(df)
     # analyze_author(df)
-    analyze_content(df)
+    # analyze_content(df)
 
 
 if __name__ == "__main__":
