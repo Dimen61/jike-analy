@@ -37,7 +37,7 @@
     - 开发社交媒体创作者工具，辅助内容创作
 
 ## 研究报告
-[总报告]()
+[总报告](./doc/analysis_report/summary.md)
 [圈子报告](./doc/analysis_report/topic.md)
 [作者影响力报告](./doc/analysis_report/author.md)
 [内容报告](./doc/analysis_report/content.md)
