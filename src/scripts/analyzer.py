@@ -18,11 +18,11 @@ It assumes the existence of a `constants` module defining file paths and
 a `core.parser` module with a function to load posts from JSON.
 """
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from collections import Counter
 
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 import constants
 from core.parser import PostDataIO
