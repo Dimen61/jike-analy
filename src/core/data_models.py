@@ -114,7 +114,7 @@ class Post:
         """Equal, used for checking equality based on link"""
         if not isinstance(other, Post):
             return NotImplemented
-        return self.link == other.link
+        return self.link == other.link and self.like_count == other.like_count
 
     def __le__(self, other):
          return self < other or self == other
