@@ -129,6 +129,7 @@ def fetch_jike_data(rest_date_num, last_id=None, max_retries=3):
             payload = construct_payload_v1(last_id, rest_date_num)
 
             response = requests.post(constants.JIKE_API_URL, json=payload, headers=headers)
+            print(f"response:\n {response}")
             response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
             print('-' * 20)
@@ -232,7 +233,10 @@ def extract_data_v1(json_data):
     """
     post_dict_list = json_data["data"]
 
-    last_id = json_data.get("loadMoreKey", {}).get("lastId", None)
+    last_id = None
+    load_more_key_data = json_data.get("loadMoreKey")
+    if isinstance(load_more_key_data, dict):
+        last_id = load_more_key_data.get("lastId", None)
 
     selected_user_post_groups = []
     selected_news_groups = []
@@ -355,13 +359,15 @@ def crawl_posts(total_date_num: int):
         print('End sleep...')
 
     print("Crawl completed successfully. Removing checkpoint file.")
-    try:
-        os.remove(constants.CHECKPOINT_FILE)
-    except OSError as e:
-        print(f"Error removing checkpoint file {constants.CHECKPOINT_FILE}: {e}")
+    if os.path.exists(constants.CHECKPOINT_FILE):
+        try:
+            os.remove(constants.CHECKPOINT_FILE)
+        except OSError as e:
+            print(f"Error removing checkpoint file {constants.CHECKPOINT_FILE}: {e}")
 
 
 if __name__ == '__main__':
     print('Begin to crawl...')
-    crawl_posts(365 + 60)
-    # crawl_posts(1)
+    # crawl_posts(365 + 60)
+    crawl_posts(1)
+    print("Finished crawling...")
