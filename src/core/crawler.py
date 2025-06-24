@@ -23,6 +23,7 @@ hardcoded authentication tokens) and save them for later analysis.
 
 import json
 import os
+import sys
 import time
 from typing import List
 
@@ -368,6 +369,15 @@ def crawl_posts(total_date_num: int):
 
 if __name__ == '__main__':
     print('Begin to crawl...')
-    # crawl_posts(365 + 60)
-    crawl_posts(1)
+
+    total_date_num = 1  # Default value
+    if len(sys.argv) > 1:
+        try:
+            total_date_num = int(sys.argv[1])
+        except ValueError:
+            print("Invalid argument for total_date_num. Using default value of 1.")
+    else:
+        print("No total_date_num provided. Using default value of 1.")
+
+    crawl_posts(total_date_num)
     print("Finished crawling...")
