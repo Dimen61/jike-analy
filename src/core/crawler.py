@@ -335,6 +335,7 @@ def crawl_posts(total_date_num: int):
         max_date_num (int): The maximum number of dates to retrieve posts for.
     """
     last_id, date_count, total_user_posts = load_checkpoint()
+    json_data = None
 
     while date_count < total_date_num:
         rest_date_num = total_date_num - date_count
@@ -352,6 +353,7 @@ def crawl_posts(total_date_num: int):
 
         for posts in selected_user_post_groups:
             total_user_posts.extend(posts)
+
         save_posts(total_user_posts)
         save_checkpoint(last_id, date_count, total_user_posts)
 
@@ -359,8 +361,9 @@ def crawl_posts(total_date_num: int):
         time.sleep(2)
         print('End sleep...')
 
-    print("Crawl completed successfully. Removing checkpoint file.")
-    if os.path.exists(constants.CHECKPOINT_FILE):
+    if os.path.exists(constants.CHECKPOINT_FILE) and json_data is not None:
+        print("Crawl completed successfully. Removing checkpoint file.")
+        
         try:
             os.remove(constants.CHECKPOINT_FILE)
         except OSError as e:
