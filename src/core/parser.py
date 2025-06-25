@@ -23,9 +23,8 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-# Assuming these are defined elsewhere
 import constants
-from core.aiproxy import AIProxy  # Assuming AIProxy is in ai_proxy.py
+from core.aiproxy import AIProxy
 from core.data_models import Author, Post
 from core.enums import ContentLengthType, PostType, SentimentType
 
@@ -74,7 +73,6 @@ class JikeParser:
                     follower_num = self._parse_follower_num(count_elements[1].text)
         except Exception as e:
              print(f'Failed to parse follower/following counts for {author_url}: {e}')
-
 
         return Author(url=author_url, name=name, follower_num=follower_num, following_num=following_num)
 
@@ -142,9 +140,12 @@ class JikeParser:
             if divs:
                  # Find all inner text divs within the content div
                 content_text = ""
+
                 for div in divs:
                     content_text += div.get_text(strip=True, separator="\\n")
-                    content_text += "\\n"
+                    if content_text and (not content_text.isspace()):
+                        content_text += "\\n"
+
                 return content_text.strip() if content_text else None
         except Exception as e:
             print(f"Error parsing post content: {e}")
