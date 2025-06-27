@@ -140,7 +140,6 @@ class AIProxy:
                     # Add a delay before retrying
                     sleep_time_in_second = 60 - time_since_last_call_per_min.total_seconds()
 
-                    print('API call reached minute limit')
                     print(f'Sleeping for {sleep_time_in_second} seconds...')
 
                     time.sleep(sleep_time_in_second)
@@ -182,7 +181,12 @@ class AIProxy:
         response = self.chat.send_message(prompt)
         print(f'Chat response(tags): {response.text}')
 
-        return ast.literal_eval(str(response.text).strip())
+        try:
+            return ast.literal_eval(str(response.text).strip())
+        except Exception as e:
+            print(f"Error parsing tags: {e}")
+            traceback.print_exc()
+            return []
 
     @api_decorator
     def get_post_type_from_content_text(self) -> PostType:
