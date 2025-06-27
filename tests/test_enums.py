@@ -1,7 +1,7 @@
 import unittest
 
 import tests.test_setup  # noqa: F401
-from core.enums import PostType, SentimentType, ContentLengthType
+from core.enums import ContentLengthType, PostType, SentimentType
 
 
 class TestEnums(unittest.TestCase):
