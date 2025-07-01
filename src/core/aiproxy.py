@@ -286,6 +286,73 @@ class AIProxy:
 
         return wrapper
 
+    @staticmethod
+    def simplified_api_decorator(func):
+        """
+        Simplified API decorator using RateLimiter and ModelManager classes.
+        This demonstrates how the decorator would work with the new architecture.
+        """
+
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Check rate limits using RateLimiter
+            rate_limit_status = self.rate_limiter.check_and_wait_if_needed()
+
+            # Handle day limit reached - switch model
+            if rate_limit_status == RateLimitStatus.DAY_LIMIT_REACHED:
+                print('Change model...')
+                self.model_manager.update_model()
+                self.rate_limiter.reset_for_new_model(self.model_manager.get_current_model())
+                self._init_chat()
+                return wrapper(self, *args, **kwargs)
+
+            # Handle minute limit reached (already waited in rate limiter)
+            elif rate_limit_status == RateLimitStatus.MINUTE_LIMIT_REACHED:
+                return wrapper(self, *args, **kwargs)
+
+            # Proceed with API call
+            try:
+                # Record the call attempt
+                self.rate_limiter.record_call_attempt()
+
+                # Execute the actual function
+                ret = func(self, *args, **kwargs)
+
+                # Record successful call
+                self.model_manager.reset_retry_count()
+                self.rate_limiter.record_successful_call()
+
+                return ret
+
+            except Exception as e:
+                # Handle API call failure
+                self.model_manager.increment_retry_count()
+
+                # Check if should switch model based on retry count
+                if self.model_manager.should_switch_model(constants.MODEL_RETRY_MAX_NUM):
+                    print('Model retry num meets the limit')
+                    print('Change model...')
+
+                    self.model_manager.update_model()
+                    self.rate_limiter.reset_for_new_model(self.model_manager.get_current_model())
+                    self._init_chat()
+
+                    return wrapper(self, *args, **kwargs)
+
+                # Retry after delay
+                else:
+                    print(f'API Error: {e}')
+                    print(f'Error type: {type(e).__name__}')
+                    traceback.print_exc()
+
+                    print('Sleeping for 60 seconds...')
+                    time.sleep(60)
+                    print('Retry API')
+
+                    return wrapper(self, *args, **kwargs)
+
+        return wrapper
+
     def __init__(self, content_txt):
         self.content_txt = content_txt
 
