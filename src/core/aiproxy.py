@@ -6,6 +6,7 @@ import traceback
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
+from enum import Enum
 
 from google import genai
 
@@ -20,9 +21,142 @@ class AIModel:
     max_call_num_per_day: int
 
 
+class RateLimitStatus(Enum):
+    """Enum for rate limit status returns."""
+    PROCEED = "proceed"
+    MINUTE_LIMIT_REACHED = "minute_limit_reached"
+    DAY_LIMIT_REACHED = "day_limit_reached"
+
+
 class NoAvailableModelError(Exception):
     """Exception raised when there is no available model in models pool."""
     pass
+
+
+class ModelManager:
+    """Manages AI model pool, switching, and retry logic."""
+
+    def __init__(self, models_pool: List[AIModel]):
+        if not models_pool:
+            raise ValueError("Models pool cannot be empty")
+
+        self.models_pool = models_pool.copy()  # Make a copy to avoid modifying original
+        self.current_model = self.models_pool[0]
+        self.retry_count = 0
+
+    def get_current_model(self) -> AIModel:
+        """Get the currently active model."""
+        return self.current_model
+
+    def update_model(self) -> AIModel:
+        """Switch to the next available model in the pool."""
+        if len(self.models_pool) <= 1:
+            raise NoAvailableModelError("Available models pool is empty...")
+
+        # Remove current model and switch to next
+        self.models_pool.pop(0)
+        self.current_model = self.models_pool[0]
+
+        print(f'Updated model: {self.current_model.name}')
+
+        # Reset retry count for new model
+        self.reset_retry_count()
+
+        return self.current_model
+
+    def increment_retry_count(self):
+        """Increment the retry count for the current model."""
+        self.retry_count += 1
+
+    def reset_retry_count(self):
+        """Reset the retry count for the current model."""
+        self.retry_count = 0
+
+    def should_switch_model(self, max_retries: int) -> bool:
+        """Check if model should be switched based on retry count."""
+        return self.retry_count >= max_retries
+
+    def have_more_available_models(self) -> bool:
+        """Check if there are available models in the pool."""
+        return len(self.models_pool) > 1
+
+    def get_models_count(self) -> int:
+        """Get the number of available models in the pool."""
+        return len(self.models_pool)
+
+
+
+
+class RateLimiter:
+    """Manages API call rate limiting for AI models."""
+
+    def __init__(self, model: AIModel):
+        self.model = model
+        self.call_count_per_min = 0
+        self.call_count_per_day = 0
+        self.last_begin_call_time_per_min = datetime.now(timezone.utc)
+        self.last_success_call_time = datetime.now(timezone.utc)
+
+    def check_and_wait_if_needed(self) -> RateLimitStatus:
+        """
+        Check rate limits and wait if necessary.
+        Returns: RateLimitStatus enum value
+        """
+        now = datetime.now(timezone.utc)
+        time_since_last_call_per_min = now - self.last_begin_call_time_per_min
+
+        # Check if minute limit is reached
+        if (
+            self.call_count_per_min >= self.model.max_call_num_per_min
+            and time_since_last_call_per_min.total_seconds() <= 60
+        ):
+            sleep_time_in_second = 60 - time_since_last_call_per_min.total_seconds()
+
+            print('API call reached minute limit')
+            print(f'Sleeping for {sleep_time_in_second} seconds...')
+            time.sleep(sleep_time_in_second)
+            print('Retry API')
+
+            # Reset minute counter and timestamp
+            self.call_count_per_min = 0
+            self.last_begin_call_time_per_min = datetime.now(timezone.utc)
+
+            return RateLimitStatus.MINUTE_LIMIT_REACHED
+
+        # Check if day limit is reached
+        elif self.call_count_per_day >= self.model.max_call_num_per_day:
+            print('API call reached day limit')
+            return RateLimitStatus.DAY_LIMIT_REACHED
+
+        # Reset last_begin_call_time_per_min if more than a minute has passed
+        elif time_since_last_call_per_min.total_seconds() > 60:
+            self.last_begin_call_time_per_min = now
+            self.call_count_per_min = 0
+
+        return RateLimitStatus.PROCEED
+    def record_call_attempt(self):
+        """Record an API call attempt."""
+        self.call_count_per_min += 1
+        self.call_count_per_day += 1
+
+        print(f"Current call count per minute: {self.call_count_per_min}")
+        print(f"Current call count per day: {self.call_count_per_day}")
+
+    def record_successful_call(self):
+        """Record a successful API call."""
+        self.last_success_call_time = datetime.now(timezone.utc)
+
+    def get_time_since_last_success(self) -> float:
+        """Get time in seconds since last successful call."""
+        now = datetime.now(timezone.utc)
+        return (now - self.last_success_call_time).total_seconds()
+
+    def reset_for_new_model(self, new_model: AIModel):
+        """Reset rate limiter state for a new model."""
+        self.model = new_model
+        self.call_count_per_min = 0
+        self.call_count_per_day = 0
+        self.last_begin_call_time_per_min = datetime.now(timezone.utc)
 
 
 class AIProxy:
