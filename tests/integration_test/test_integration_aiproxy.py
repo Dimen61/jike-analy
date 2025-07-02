@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 import tests.test_setup  # noqa: F401
 import constants
-from core.aiproxy import AIModel, AIProxy, NoAvailableModelError
+from core.ai.aiproxy import AIProxy
+from core.ai.model import AIModel, NoAvailableModelError
 from core.enums import PostType, SentimentType
 
 
@@ -33,15 +34,16 @@ class TestIntegrationAIProxy(unittest.TestCase):
 
     def setUp(self):
         # Reset AIProxy class variables before each test
-        AIProxy.models_pool = [
-            AIModel(name="gemini-2.0-flash", max_call_num_per_min=30, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
-        ]
-        AIProxy.model = AIProxy.models_pool[0]
-        AIProxy.model_retry_count = 0
-        AIProxy.call_count_per_min = 0
-        AIProxy.call_count_per_day = 0
-        AIProxy.last_begin_call_time_per_min = AIProxy.last_success_call_time = AIProxy.last_success_call_time
+        # AIProxy.models_pool = [
+        #     AIModel(name="gemini-2.0-flash", max_call_num_per_min=30, max_call_num_per_day=1500),
+        #     AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
+        # ]
+        # AIProxy.model = AIProxy.models_pool[0]
+        # AIProxy.model_retry_count = 0
+        # AIProxy.call_count_per_min = 0
+        # AIProxy.call_count_per_day = 0
+        # AIProxy.last_begin_call_time_per_min = AIProxy.last_success_call_time = AIProxy.last_success_call_time
+        pass
 
     def test_aiproxy_initialization_with_real_api(self):
         """Test that AIProxy can be initialized with real API and send initial message."""

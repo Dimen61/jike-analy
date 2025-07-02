@@ -24,7 +24,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import constants
-from core.aiproxy import AIProxy
+from core.ai.aiproxy import AIProxy
 from core.data_models import Author, Post
 from core.enums import ContentLengthType, PostType, SentimentType
 

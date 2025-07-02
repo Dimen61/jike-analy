@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import tests.test_setup  # noqa: F401
 import constants
-from core.aiproxy import AIModel, AIProxy, NoAvailableModelError
+from core.ai.aiproxy import AIProxy
+from core.ai.model import AIModel, NoAvailableModelError
 from core.enums import PostType, SentimentType
 
 
