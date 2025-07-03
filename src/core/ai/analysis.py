@@ -3,7 +3,7 @@ import traceback
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional
 
-from core.ai.aiproxy import APIClient
+from core.ai.model import APIClient
 from core.enums import PostType, SentimentType
 
 

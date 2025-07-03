@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
-from google import genai
-
 from core.ai.analysis import (
     CreativeAnalysisOperation,
     HotspotAnalysisOperation,
@@ -15,7 +13,7 @@ from core.ai.analysis import (
     SentimentAnalysisOperation,
     TagsAnalysisOperation,
 )
-from core.ai.model import AIModel, ConfigurationManager, ModelManager
+from core.ai.model import AIModel, APIClient, ConfigurationManager, ModelManager
 from core.enums import PostType, SentimentType
 
 
@@ -97,49 +95,6 @@ class RateLimiter:
         self._call_count_per_min = 0
         self._call_count_per_day = 0
         self._last_begin_call_time_per_min = datetime.now(timezone.utc)
-
-
-class APIClient:
-    """Dedicated API client for Google Gemini models."""
-
-    def __init__(self, api_key: str):
-        if not api_key:
-            raise ValueError("API key is required")
-
-        self._client = genai.Client(api_key=api_key)
-        self._chat = None
-        self._current_model = None
-
-    def initialize_chat(self, model: AIModel, initial_prompt: str):
-        """Initialize chat session with the specified model."""
-        try:
-            print(f'Initializing chat with model: {model.name}')
-            print(f'Model limits - Per minute: {model.max_call_num_per_min}, Per day: {model.max_call_num_per_day}')
-
-            self._chat = self._client.chats.create(model=model.name)
-            response = self._chat.send_message(initial_prompt)
-            self._current_model = model
-
-            print(f'Chat initialized successfully. Response: {response.text}')
-            return response
-        except Exception as e:
-            print(f'Failed to initialize chat with model {model.name}: {e}')
-            raise RuntimeError(f"Chat initialization failed: {e}")
-
-    def send_message(self, prompt: str):
-        """Send a message to the current chat session."""
-        if not self._chat:
-            raise RuntimeError("Chat not initialized")
-
-        return self._chat.send_message(prompt)
-
-    def is_chat_initialized(self) -> bool:
-        """Check if chat is initialized."""
-        return self._chat is not None
-
-    def get_current_model(self) -> Optional[AIModel]:
-        """Get the current model in use."""
-        return self._current_model
 
 
 class AIProxy:
