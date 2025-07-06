@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import tests.test_setup  # noqa: F401
 import constants
-from core.ai.aiproxy import AIProxy
+from core.ai.aiproxy import AIProxy, RateLimitStatus
 from core.ai.model import AIModel, NoAvailableModelError
 from core.enums import PostType, SentimentType
 
@@ -31,34 +31,6 @@ class TestIntegrationAIProxy(unittest.TestCase):
     def tearDownClass(cls):
         # Restore original constants
         constants.MODEL_RETRY_MAX_NUM = cls.original_retry_max
-
-    def setUp(self):
-        # Reset AIProxy class variables before each test
-        # AIProxy.models_pool = [
-        #     AIModel(name="gemini-2.0-flash", max_call_num_per_min=30, max_call_num_per_day=1500),
-        #     AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
-        # ]
-        # AIProxy.model = AIProxy.models_pool[0]
-        # AIProxy.model_retry_count = 0
-        # AIProxy.call_count_per_min = 0
-        # AIProxy.call_count_per_day = 0
-        # AIProxy.last_begin_call_time_per_min = AIProxy.last_success_call_time = AIProxy.last_success_call_time
-        pass
-
-    def test_aiproxy_initialization_with_real_api(self):
-        """Test that AIProxy can be initialized with real API and send initial message."""
-        content_txt = "这是一个关于Python编程的简单介绍文本。"
-
-        # This should work without raising exceptions
-        proxy = AIProxy(content_txt)
-
-        # Verify initialization
-        self.assertEqual(proxy.content_txt, content_txt)
-        self.assertIsNotNone(proxy.client)
-        self.assertIsNotNone(proxy.chat)
-
-        # The chat should have been initialized with initial message
-        # We can't easily verify the exact response, but the fact it didn't raise an exception is good
 
     def test_get_tags_from_content_text_integration(self):
         """Test getting tags from content with real AI model."""
@@ -92,10 +64,9 @@ class TestIntegrationAIProxy(unittest.TestCase):
         post_type = proxy.get_post_type_from_content_text()
 
         # Verify response
-        self.assertIsInstance(post_type, PostType)
-        self.assertNotEqual(post_type, PostType.NONE)
-        # Knowledge content should likely be classified as KNOWLEDGE
-        # Note: AI might classify differently, so we just check it's not NONE
+        # self.assertIsInstance(post_type, PostType)
+        # self.assertNotEqual(post_type, PostType.NONE)
+        self.assertEqual(post_type, PostType.KNOWLEDGE)
 
     def test_get_sentiment_type_from_content_text_integration(self):
         """Test getting sentiment type from content with real AI model."""
@@ -106,17 +77,14 @@ class TestIntegrationAIProxy(unittest.TestCase):
         sentiment = proxy.get_sentiment_type_from_content_text()
 
         # Verify response
-        self.assertIsInstance(sentiment, SentimentType)
-        self.assertNotEqual(sentiment, SentimentType.NONE)
-        # This should likely be positive, but we just verify it's not NONE
+        self.assertEqual(sentiment, SentimentType.POSITIVE)
 
         # Test negative sentiment
         negative_content = "这个服务太糟糕了，完全不值得购买。浪费时间和金钱。"
         proxy_negative = AIProxy(negative_content)
 
         sentiment_negative = proxy_negative.get_sentiment_type_from_content_text()
-        self.assertIsInstance(sentiment_negative, SentimentType)
-        self.assertNotEqual(sentiment_negative, SentimentType.NONE)
+        self.assertEqual(sentiment_negative, SentimentType.NEGATIVE)
 
     def test_is_hotspot_from_content_text_integration(self):
         """Test hotspot detection from content with real AI model."""
@@ -127,8 +95,7 @@ class TestIntegrationAIProxy(unittest.TestCase):
         is_hotspot = proxy.is_hotspot_from_content_text()
 
         # Verify response
-        self.assertIsInstance(is_hotspot, bool)
-        # AI/ChatGPT should likely be considered a hotspot, but we just verify it's a boolean
+        self.assertTrue(is_hotspot)
 
     def test_is_creative_from_content_text_integration(self):
         """Test creativity detection from content with real AI model."""
@@ -139,8 +106,7 @@ class TestIntegrationAIProxy(unittest.TestCase):
         is_creative = proxy.is_creative_from_content_text()
 
         # Verify response
-        self.assertIsInstance(is_creative, bool)
-        # This fantastical content should likely be considered creative
+        self.assertTrue(is_creative)
 
     def test_multiple_requests_with_same_proxy(self):
         """Test making multiple requests with the same proxy instance."""
@@ -157,70 +123,25 @@ class TestIntegrationAIProxy(unittest.TestCase):
         self.assertIsInstance(post_type, PostType)
         self.assertIsInstance(sentiment, SentimentType)
 
-        # Verify the chat session is maintained
-        self.assertIsNotNone(proxy.chat)
+        # Verify the chat session is maintained (through the APIClient)
+        self.assertTrue(proxy._api_client.is_chat_initialized())
 
-    def test_rate_limiting_behavior(self):
-        """Test that rate limiting works correctly with real API calls."""
+    @patch('core.ai.aiproxy.RateLimiter.record_call_attempt')
+    @patch('core.ai.aiproxy.RateLimiter.check_and_wait_if_needed', return_value=RateLimitStatus.PROCEED)
+    def test_rate_limiting_behavior(self, mock_check_and_wait, mock_record_call):
+        """Test that API calls go through the rate limiter and attempts are recorded."""
         content_txt = "测试内容"
         proxy = AIProxy(content_txt)
-
-        # Record initial state
-        initial_call_count_min = AIProxy.call_count_per_min
-        initial_call_count_day = AIProxy.call_count_per_day
 
         # Make a request
         tags = proxy.get_tags_from_content_text()
 
-        # Verify counters were incremented
-        self.assertGreater(AIProxy.call_count_per_min, initial_call_count_min)
-        self.assertGreater(AIProxy.call_count_per_day, initial_call_count_day)
+        # Verify record_call_attempt was called
+        self.assertEqual(mock_record_call.call_count, 2)
+        self.assertEqual(mock_check_and_wait.call_count, 2)
 
         # Verify we got a valid response
         self.assertIsInstance(tags, list)
-
-    def test_model_switching_on_error(self):
-        """Test that model switching works when encountering errors."""
-        # This test is tricky because we need to simulate an error condition
-        # We'll test the model switching logic by forcing an error scenario
-
-        content_txt = "测试模型切换"
-
-        # Set up a scenario where we have limited models
-        AIProxy.models_pool = [
-            AIModel(name="gemini-2.0-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=15, max_call_num_per_day=1500),
-        ]
-        AIProxy.model = AIProxy.models_pool[0]
-        AIProxy.call_count_per_day = 0
-        AIProxy.call_count_per_min = 0
-
-        proxy = AIProxy(content_txt)
-
-        # This should use the first model
-        initial_model_name = AIProxy.model.name
-
-        # Force day limit to trigger model switching
-        AIProxy.call_count_per_day = AIProxy.model.max_call_num_per_day
-
-        # Make another request - this should switch models
-        tags = proxy.get_tags_from_content_text()
-
-        # Verify model was switched
-        self.assertNotEqual(AIProxy.model.name, initial_model_name)
-        self.assertIsInstance(tags, list)
-
-    def test_no_available_model_error(self):
-        """Test NoAvailableModelError is raised when no models are available."""
-        # Set up scenario with only one model
-        AIProxy.models_pool = [
-            AIModel(name="single-model", max_call_num_per_min=1, max_call_num_per_day=1)
-        ]
-        AIProxy.model = AIProxy.models_pool[0]
-
-        # This should raise NoAvailableModelError when trying to update
-        with self.assertRaises(NoAvailableModelError):
-            AIProxy.update_model()
 
     def test_different_content_types_end_to_end(self):
         """Test end-to-end processing of different content types."""
@@ -259,25 +180,6 @@ class TestIntegrationAIProxy(unittest.TestCase):
 
                 # At least tags should be non-empty for meaningful content
                 self.assertGreater(len(tags), 0, f"Should have tags for content: {test_case['content'][:50]}...")
-
-    @patch('time.sleep')  # Speed up tests by mocking sleep
-    def test_api_call_timing_and_limits(self, mock_sleep):
-        """Test that API call timing and limits work correctly."""
-        content_txt = "测试API调用时机"
-        proxy = AIProxy(content_txt)
-
-        # Reset counters
-        AIProxy.call_count_per_min = 0
-        AIProxy.call_count_per_day = 0
-
-        # Make several rapid calls
-        for i in range(3):
-            tags = proxy.get_tags_from_content_text()
-            self.assertIsInstance(tags, list)
-
-        # Verify call counts were tracked
-        self.assertEqual(AIProxy.call_count_per_min, 3)
-        self.assertEqual(AIProxy.call_count_per_day, 3)
 
 
 if __name__ == '__main__':

@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import tests.test_setup  # noqa: F401
 import constants
-from core.ai.aiproxy import AIProxy
-from core.ai.model import AIModel, NoAvailableModelError
+from core.ai.aiproxy import AIProxy, RateLimitStatus
+from core.ai.model import AIModel, NoAvailableModelError, ConfigurationManager, ModelManager
 from core.enums import PostType, SentimentType
 
 
@@ -30,18 +30,6 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
 
     def setUp(self):
         # Reset AIProxy class variables before each test
-        AIProxy.models_pool = [
-            AIModel(name="gemini-2.0-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
-            AIModel(name="gemini-2.0-flash-lite", max_call_num_per_min=30, max_call_num_per_day=1500),
-            AIModel(name="gemini-1.5-flash", max_call_num_per_min=15, max_call_num_per_day=1500),
-        ]
-        AIProxy.model = AIProxy.models_pool[0]
-        AIProxy.model_retry_count = 0
-        AIProxy.call_count_per_min = 0
-        AIProxy.call_count_per_day = 0
-        AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc)
-        AIProxy.last_success_call_time = datetime.now(timezone.utc)
-
         # Set up mock API key
         os.environ['GEMINI_API_KEY'] = 'test_api_key'
 
@@ -87,9 +75,8 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
         proxy = AIProxy(content_txt)
 
         # Verify initialization
-        self.assertEqual(proxy.content_txt, content_txt)
-        self.assertIsNotNone(proxy.client)
-        self.assertIsNotNone(proxy.chat)
+        self.assertIsNotNone(proxy._api_client._client)
+        self.assertIsNotNone(proxy._api_client._chat)
 
         # Test all analysis methods
         tags = proxy.get_tags_from_content_text()
@@ -106,39 +93,47 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
         self.assertFalse(is_creative)
 
         # Verify API call count tracking
-        self.assertEqual(AIProxy.call_count_per_min, 6)  # 1 init + 5 analysis calls
-        self.assertEqual(AIProxy.call_count_per_day, 6)
+        self.assertEqual(proxy._rate_limiter._call_count_per_min, 6)  # 1 init + 5 analysis calls
+        self.assertEqual(proxy._rate_limiter._call_count_per_day, 6)
 
         # Verify all expected prompts were sent
         self.assertEqual(self.mock_chat.send_message.call_count, 6)
 
+
+    @patch('time.sleep', MagicMock())
     def test_model_switching_integration(self):
         """Test model switching behavior in an integrated scenario."""
         content_txt = "测试模型切换功能"
 
         # Mock initial response
-        self.mock_chat.send_message.return_value = MagicMock(text="初始响应")
+        # Mock initial response for AIProxy internal _api_client.initialize_chat
+        # And for subsequent analysis calls
+        self.mock_chat.send_message.side_effect = [
+            MagicMock(text="初始响应"),    # AIProxy._api_client.initialize_chat (first model)
+            MagicMock(text="初始响应"),    # AIProxy._api_client.initialize_chat (after model switch)
+            MagicMock(text="['测试标签']") # TagsAnalysisOperation.execute (after model switch)
+        ]
 
         # Initialize proxy with first model
         proxy = AIProxy(content_txt)
-        initial_model_name = AIProxy.model.name
+        initial_model_name = proxy._model_manager.get_current_model().name
 
-        # Force day limit to trigger model switching
-        AIProxy.call_count_per_day = AIProxy.model.max_call_num_per_day
+        # Force day limit to trigger model switching by directly setting internal state
+        # of the rate limiter instance within the proxy
+        proxy._rate_limiter._call_count_per_day = proxy._rate_limiter._model.max_call_num_per_day
 
-        # Mock response for the next call that should trigger model switch
-        self.mock_chat.send_message.return_value = MagicMock(text="['测试标签']")
-
-        # This call should trigger model switching
+        # This call should trigger model switching and then re-initialize chat, then send message
         tags = proxy.get_tags_from_content_text()
 
         # Verify model was switched
-        self.assertNotEqual(AIProxy.model.name, initial_model_name)
+        self.assertNotEqual(proxy._model_manager.get_current_model().name, initial_model_name)
         self.assertEqual(tags, ['测试标签'])
 
         # Verify counters were reset after model switch
-        self.assertEqual(AIProxy.call_count_per_day, 2)  # init 1 + 1 new call
-        self.assertEqual(AIProxy.model_retry_count, 0)
+        # The _initialize_chat method also calls send_message (counts as 1 call), then get_tags calls it again.
+        # So _call_count_per_day should be 2.
+        self.assertEqual(proxy._rate_limiter._call_count_per_day, 2)
+        self.assertEqual(proxy._model_manager._retry_count, 0)
 
     @patch('time.sleep')
     def test_rate_limiting_integration(self, mock_sleep):
@@ -155,9 +150,9 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
         # Initialize proxy
         proxy = AIProxy(content_txt)
 
-        # Set up rate limiting scenario
-        AIProxy.call_count_per_min = AIProxy.model.max_call_num_per_min - 1
-        AIProxy.last_begin_call_time_per_min = datetime.now(timezone.utc) - timedelta(seconds=30)
+        # Set up rate limiting scenario by directly setting internal state
+        proxy._rate_limiter._call_count_per_min = proxy._rate_limiter._model.max_call_num_per_min - 1
+        proxy._rate_limiter._last_begin_call_time_per_min = datetime.now(timezone.utc) - timedelta(seconds=30)
 
         # Make a call that should trigger rate limiting
         tags = proxy.get_tags_from_content_text()
@@ -190,7 +185,7 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
         mock_sleep.assert_called()  # Should have slept during retry
 
         # Verify retry count was reset after success
-        self.assertEqual(AIProxy.model_retry_count, 0)
+        self.assertEqual(proxy._model_manager._retry_count, 0)
 
     @patch('time.sleep')
     def test_max_retry_model_switching_integration(self, mock_sleep):
@@ -208,31 +203,38 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
 
         # Initialize proxy
         proxy = AIProxy(content_txt)
-        initial_model_name = AIProxy.model.name
+        initial_model_name = proxy._model_manager.get_current_model().name
 
-        # Set retry count near limit
-        AIProxy.model_retry_count = constants.MODEL_RETRY_MAX_NUM - 1
+        # Set retry count near limit by directly setting internal state
+        proxy._model_manager._retry_count = constants.MODEL_RETRY_MAX_NUM - 1
 
         # Make call that should trigger max retry and model switch
         tags = proxy.get_tags_from_content_text()
 
         # Verify model was switched and call succeeded
-        self.assertNotEqual(AIProxy.model.name, initial_model_name)
+        self.assertNotEqual(proxy._model_manager.get_current_model().name, initial_model_name)
         self.assertEqual(tags, ['切换成功'])
-        self.assertEqual(AIProxy.model_retry_count, 0)
+        self.assertEqual(proxy._model_manager._retry_count, 0)
         mock_sleep.assert_called()  # Should have slept during retry
 
-    def test_no_available_model_integration(self):
+    @patch('time.sleep', MagicMock())
+    @patch.object(ConfigurationManager, '_load_models_config', return_value=[
+        AIModel(name="only-model", max_call_num_per_min=1, max_call_num_per_day=1)
+    ])
+    def test_no_available_model_integration(self, mock_load_models_config):
         """Test behavior when no models are available."""
         content_txt = "测试无可用模型"
 
-        # Reduce models pool to one
-        AIProxy.models_pool = [AIModel(name="only-model", max_call_num_per_min=1, max_call_num_per_day=1)]
-        AIProxy.model = AIProxy.models_pool[0]
+        # Initialize proxy with the mocked single model pool
+        proxy = AIProxy(content_txt)
 
-        # Should raise error when trying to update with no remaining models
+        # Now, try to trigger a model switch (e.g., by exhausting the day limit)
+        # This will make ModelManager try to update_model, which should fail
+        proxy._rate_limiter._call_count_per_day = proxy._rate_limiter._model.max_call_num_per_day
+
+        # When the next API call is made, it will try to switch models
         with self.assertRaises(NoAvailableModelError):
-            AIProxy.update_model()
+            proxy.get_tags_from_content_text()
 
     def test_invalid_response_handling_integration(self):
         """Test handling of invalid AI responses in integrated workflow."""
@@ -264,42 +266,6 @@ class TestIntegrationAIProxyMock(unittest.TestCase):
         self.assertEqual(sentiment, SentimentType.NONE)  # NONE for invalid sentiment
         self.assertFalse(is_hotspot)  # False for invalid boolean
         self.assertFalse(is_creative)  # False for invalid boolean
-
-    def test_class_variable_persistence_across_instances(self):
-        """Test that class variables are properly shared across instances."""
-        content_txt_1 = "第一个实例"
-        content_txt_2 = "第二个实例"
-
-        # Mock responses
-        self.mock_chat.send_message.side_effect = [
-            MagicMock(text="响应1"),  # proxy1 init
-            MagicMock(text="响应2"),  # proxy2 init
-            MagicMock(text="['标签1']"),  # proxy1 call
-            MagicMock(text="['标签2']")   # proxy2 call
-        ]
-
-        # Create first instance
-        proxy1 = AIProxy(content_txt_1)
-        call_count_after_first = AIProxy.call_count_per_day
-
-        # Create second instance
-        proxy2 = AIProxy(content_txt_2)
-        call_count_after_second = AIProxy.call_count_per_day
-
-        # Verify call counts are shared
-        self.assertEqual(call_count_after_second, call_count_after_first + 1)
-
-        # Make calls with both instances
-        proxy1.get_tags_from_content_text()
-        call_count_after_proxy1_call = AIProxy.call_count_per_day
-
-        proxy2.get_tags_from_content_text()
-        call_count_after_proxy2_call = AIProxy.call_count_per_day
-
-        # Verify counts continue to be shared
-        self.assertEqual(call_count_after_proxy1_call, call_count_after_second + 1)
-        self.assertEqual(call_count_after_proxy2_call, call_count_after_proxy1_call + 1)
-
 
 if __name__ == '__main__':
     unittest.main()
